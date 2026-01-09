@@ -4,7 +4,7 @@ using System.Buffers;
 using System.Diagnostics;
 using System.IO.Ports;
 
-public sealed class SerialPortReader : IDisposable
+public sealed class SerialLineReader : IDisposable
 {
 #pragma warning disable CA1003
     public event EventHandler<ReadOnlySpan<byte>>? LineReceived;
@@ -69,11 +69,11 @@ public sealed class SerialPortReader : IDisposable
 
     public int MaxBufferSize => maxBufferSize;
 
-    public SerialPortReader(
+    public SerialLineReader(
         SerialPort serialPort,
         byte[]? delimiter = null,
         int maxBufferSize = 65536,
-        bool ownsSerialPort = false)
+        bool ownsSerialPort = true)
     {
         this.serialPort = serialPort ?? throw new ArgumentNullException(nameof(serialPort));
         this.delimiter = delimiter ?? [(byte)'\n'];

@@ -3,7 +3,7 @@ using System.IO.Ports;
 using Mofucat.SerialIO;
 
 using var serialPort = new SerialPort("COM9");
-using var reader = new SerialPortReader(serialPort, delimiter: [(byte)'\r'], maxBufferSize: 16, ownsSerialPort: true);
+using var reader = new SerialLineReader(serialPort, delimiter: [(byte)'\r'], maxBufferSize: 16);
 
 reader.BufferOverflow += (_, size) =>
 {
