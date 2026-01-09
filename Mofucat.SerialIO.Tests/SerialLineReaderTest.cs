@@ -1,10 +1,10 @@
 // ReSharper disable AccessToDisposedClosure
 // ReSharper disable StringLiteralTypo
-// TODO delete ?
 #pragma warning disable CA1707
 namespace Mofucat.SerialIO;
 
 using System.IO.Ports;
+using System.Reflection;
 using System.Text;
 
 public sealed class SerialLineReaderTest
@@ -14,14 +14,38 @@ public sealed class SerialLineReaderTest
 
     private const int WaitTimeout = 5000;
     private const int SendWait = 100;
+    private const int WaitValueTimeout = 5000;
+
+    private static bool WaitForFieldValue<T>(object target, string fieldName, Func<T, bool> predicate)
+    {
+        var fieldInfo = target.GetType().GetField(fieldName, BindingFlags.NonPublic | BindingFlags.Instance);
+        if (fieldInfo == null)
+        {
+            throw new InvalidOperationException($"Field '{fieldName}' not found on type '{target.GetType().Name}'");
+        }
+
+        var endTime = DateTime.UtcNow.AddMilliseconds(WaitValueTimeout);
+        while (DateTime.UtcNow < endTime)
+        {
+            var value = (T?)fieldInfo.GetValue(target);
+            if (value != null && predicate(value))
+            {
+                return true;
+            }
+            Thread.Sleep(10);
+        }
+
+        return false;
+    }
 
     [Fact]
-    public void Test1_NormalReceive()
+    public void Test_NormalReceive()
     {
-        // 通常の受信（単一バイト終端）
+        // Normal receive rest
+
+        // Setup
         using var receivePort = new SerialPort(ReceivePort, 9600);
         using var sendPort = new SerialPort(SendPort, 9600);
-
         using var reader = new SerialLineReader(
             receivePort,
             delimiter: [(byte)'\n'],
@@ -44,32 +68,41 @@ public sealed class SerialLineReaderTest
         receivePort.Open();
         sendPort.Open();
 
+        // Start Test
+
+        // 1st data send
         sendPort.Write("Hello\n");
         event1.Wait(TimeSpan.FromMilliseconds(WaitTimeout), TestContext.Current.CancellationToken);
 
+        // 2nd data send
         sendPort.Write("World\n");
         event2.Wait(TimeSpan.FromMilliseconds(WaitTimeout), TestContext.Current.CancellationToken);
 
         sendPort.Close();
 
+        // Assert
+
+        // Assert received data
         Assert.Equal(2, list.Count);
         Assert.Equal("Hello", list[0]);
         Assert.Equal("World", list[1]);
 
+        // Assert statistics
         var stats = reader.GetStatistics();
-        Assert.Equal(2, stats.TotalLinesReceived);
+        Assert.Equal(2, stats.TotalLinesReceived); // 2 lines received
         Assert.Equal(12, stats.TotalBytesReceived); // "Hello\n" + "World\n" = 12
-        Assert.Equal(0, stats.TotalOverflowCount);
-        Assert.Equal(0, stats.TotalEmptyLinesSkipped);
+        Assert.Equal(0, stats.TotalOverflowCount); // No overflow
+        Assert.Equal(0, stats.TotalEmptyLinesSkipped); // No empty lines
     }
 
     [Fact]
-    public void Test2_BufferOverflow()
+    public void Test_BufferOverflow()
     {
-        // バッファオーバーフロー
+        // Overflow test
+
+        // Setup
         using var receivePort = new SerialPort(ReceivePort, 9600);
         using var sendPort = new SerialPort(SendPort, 9600);
-
         using var reader = new SerialLineReader(
             receivePort,
             delimiter: [(byte)'\n'],
@@ -98,28 +131,36 @@ public sealed class SerialLineReaderTest
         receivePort.Open();
         sendPort.Open();
 
+        // Setup
+
+        // Send data that causes overflow
         sendPort.Write("ABCDEFGHIJKLMNO\n");
         overflowEvent.Wait(TimeSpan.FromMilliseconds(WaitTimeout), TestContext.Current.CancellationToken);
         lineEvent.Wait(TimeSpan.FromMilliseconds(WaitTimeout), TestContext.Current.CancellationToken);
 
         sendPort.Close();
 
-        Assert.Single(list);
-        Assert.True(list[0].Length <= 10);
+        // Assert
 
+        // Assert received data
+        Assert.Single(list);
+        Assert.Equal("GHIJKLMNO", list[0]);
+
+        // Assert statistics
         var stats = reader.GetStatistics();
         Assert.Equal(1, stats.TotalLinesReceived);
-        Assert.True(stats.TotalOverflowCount >= 1);
-        Assert.True(stats.TotalBytesDiscarded > 0);
+        Assert.True(stats.TotalOverflowCount >= 1); // Overflow occurred
+        Assert.True(stats.TotalBytesDiscarded > 0); // Discarded data exists
     }
 
     [Fact]
-    public void Test3_RingWrap()
+    public void Test_RingWrap()
     {
-        // リングバッファの境界越え
+        // Ring buffer wrap-around test
+
+        // Setup
         using var receivePort = new SerialPort(ReceivePort, 9600);
         using var sendPort = new SerialPort(SendPort, 9600);
-
         using var reader = new SerialLineReader(
             receivePort,
             delimiter: [(byte)'\n'],
@@ -143,34 +184,44 @@ public sealed class SerialLineReaderTest
         receivePort.Open();
         sendPort.Open();
 
+        // Start Test
+
+        // In buffer boundary data send
         sendPort.Write("First\n");
         event1.Wait(TimeSpan.FromMilliseconds(WaitTimeout), TestContext.Current.CancellationToken);
 
+        // In buffer boundary data send
         sendPort.Write("Second\n");
         event2.Wait(TimeSpan.FromMilliseconds(WaitTimeout), TestContext.Current.CancellationToken);
 
+        // Wrap around data send
         sendPort.Write("Third\n");
         event3.Wait(TimeSpan.FromMilliseconds(WaitTimeout), TestContext.Current.CancellationToken);
 
         sendPort.Close();
 
+        // Assert
+
+        // Assert received data
         Assert.Equal(3, list.Count);
         Assert.Equal("First", list[0]);
         Assert.Equal("Second", list[1]);
         Assert.Equal("Third", list[2]);
 
+        // Assert statistics
         var stats = reader.GetStatistics();
         Assert.Equal(3, stats.TotalLinesReceived);
         Assert.Equal(19, stats.TotalBytesReceived); // 6+7+6
     }
 
     [Fact]
-    public void Test4_MultiByteDelimiter()
+    public void Test_MultiByteDelimiter()
     {
-        // 複数バイト終端文字列
+        // Multi bytes terminator test
+
+        // Setup
         using var receivePort = new SerialPort(ReceivePort, 9600);
         using var sendPort = new SerialPort(SendPort, 9600);
-
         using var reader = new SerialLineReader(
             receivePort,
             delimiter: "\r\n"u8.ToArray(),
@@ -193,27 +244,37 @@ public sealed class SerialLineReaderTest
         receivePort.Open();
         sendPort.Open();
 
+        // Start Test
+
+        // 1st data send
         sendPort.Write("Line1\r\n");
         event1.Wait(TimeSpan.FromMilliseconds(WaitTimeout), TestContext.Current.CancellationToken);
 
+        // 2nd data send
         sendPort.Write("Line2\r\n");
         event2.Wait(TimeSpan.FromMilliseconds(WaitTimeout), TestContext.Current.CancellationToken);
 
         sendPort.Close();
 
+        // Assert
+
+        // Assert received data
         Assert.Equal(2, list.Count);
         Assert.Equal("Line1", list[0]);
         Assert.Equal("Line2", list[1]);
 
+        // Assert statistics
         var stats = reader.GetStatistics();
         Assert.Equal(2, stats.TotalLinesReceived);
         Assert.Equal(14, stats.TotalBytesReceived); // "Line1\r\n" + "Line2\r\n" = 14
     }
 
     [Fact]
-    public void Test5_SearchOptimization()
+    public void Test_SearchOptimization()
     {
-        // 検索位置の最適化テスト
+        // Search optimization test
+
+        // Setup
         using var receivePort = new SerialPort(ReceivePort, 9600);
         using var sendPort = new SerialPort(SendPort, 9600);
 
@@ -238,24 +299,40 @@ public sealed class SerialLineReaderTest
         receivePort.Open();
         sendPort.Open();
 
+        // Start Test
+
+        // Send split data to test searchStart optimization
         sendPort.Write("Partial");
         Thread.Sleep(SendWait);
+
+        // Verify that search start position updated (should be greater than 0)
+        Assert.True(WaitForFieldValue<int>(reader, "searchStart", value => value > 0));
+
         sendPort.Write("Data");
         Thread.Sleep(SendWait);
-        sendPort.Write("Here\n");
 
+        // Verify that search start position updated (should be greater than 0)
+        Assert.True(WaitForFieldValue<int>(reader, "searchStart", value => value > 7));
+
+        // Send terminator
+        sendPort.Write("Here\n");
         lineEvent.Wait(TimeSpan.FromMilliseconds(WaitTimeout), TestContext.Current.CancellationToken);
 
         sendPort.Close();
 
+        // Assert
+
+        // Assert received data
         Assert.Single(list);
         Assert.Equal("PartialDataHere", list[0]);
 
+        // Assert statistics
         var stats = reader.GetStatistics();
         Assert.Equal(1, stats.TotalLinesReceived);
         Assert.Equal(16, stats.TotalBytesReceived);
     }
 
+    // TODO comment update
     [Fact]
     public void Test6_ContinuousData()
     {
