@@ -306,13 +306,13 @@ public sealed class SerialLineReaderTest
         Thread.Sleep(SendWait);
 
         // Verify that search start position updated (should be greater than 0)
-        Assert.True(WaitForFieldValue<int>(reader, "searchStart", value => value > 0));
+        Assert.True(WaitForFieldValue<int>(reader, "search", value => value > 0));
 
         sendPort.Write("Data");
         Thread.Sleep(SendWait);
 
         // Verify that search start position updated (should be greater than 0)
-        Assert.True(WaitForFieldValue<int>(reader, "searchStart", value => value > 7));
+        Assert.True(WaitForFieldValue<int>(reader, "search", value => value > 7));
 
         // Send terminator
         sendPort.Write("Here\n");
