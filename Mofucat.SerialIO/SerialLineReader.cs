@@ -200,6 +200,50 @@ public sealed class SerialLineReader : IDisposable
     }
 
     // ------------------------------------------------------------
+    // Fire events
+    // ------------------------------------------------------------
+
+    private void RaiseLineReceived(ReadOnlySpan<byte> line)
+    {
+        var handler = LineReceived;
+        if (handler is null)
+        {
+            return;
+        }
+
+#pragma warning disable CA1031
+        try
+        {
+            handler.Invoke(this, line);
+        }
+        catch
+        {
+            // Ignore
+        }
+#pragma warning restore CA1031
+    }
+
+    private void RaiseBufferOverflow(int discardedBytes)
+    {
+        var handler = BufferOverflow;
+        if (handler is null)
+        {
+            return;
+        }
+
+#pragma warning disable CA1031
+        try
+        {
+            handler.Invoke(this, discardedBytes);
+        }
+        catch
+        {
+            // Ignore
+        }
+#pragma warning restore CA1031
+    }
+
+    // ------------------------------------------------------------
     // Receive Handling
     // ------------------------------------------------------------
 
@@ -244,16 +288,8 @@ public sealed class SerialLineReader : IDisposable
             // Set search position
             search = Math.Max(0, search - discardedBytes);
 
-#pragma warning disable CA1031
-            try
-            {
-                BufferOverflow?.Invoke(this, discardedBytes);
-            }
-            catch
-            {
-                // Ignore
-            }
-#pragma warning restore CA1031
+            // Raise overflow event
+            RaiseBufferOverflow(discardedBytes);
         }
 
         // Read data from SerialPort into ring buffer
@@ -321,7 +357,7 @@ public sealed class SerialLineReader : IDisposable
                 if (head + delimiterIndex <= maxBufferSize)
                 {
                     // Process contiguous line
-                    LineReceived?.Invoke(this, buffer.AsSpan(head, delimiterIndex));
+                    RaiseLineReceived(buffer.AsSpan(head, delimiterIndex));
                 }
                 else
                 {
@@ -352,7 +388,7 @@ public sealed class SerialLineReader : IDisposable
         {
             Span<byte> tempBuffer = stackalloc byte[delimiterIndex];
             CopyFromRingBuffer(tempBuffer);
-            LineReceived?.Invoke(this, tempBuffer);
+            RaiseLineReceived(tempBuffer);
         }
         else
         {
@@ -362,7 +398,7 @@ public sealed class SerialLineReader : IDisposable
             {
                 CopyFromRingBuffer(tempBuffer.AsSpan(0, delimiterIndex));
                 ReadOnlySpan<byte> line = tempBuffer.AsSpan(0, delimiterIndex);
-                LineReceived?.Invoke(this, line);
+                RaiseLineReceived(line);
             }
             finally
             {

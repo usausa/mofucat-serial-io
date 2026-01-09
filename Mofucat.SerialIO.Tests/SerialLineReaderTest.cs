@@ -16,10 +16,14 @@ public sealed class SerialLineReaderTest
     private const int SendWait = 100;
     private const int WaitValueTimeout = 5000;
 
+    // ------------------------------------------------------------
+    // Helper
+    // ------------------------------------------------------------
+
     private static bool WaitForFieldValue<T>(object target, string fieldName, Func<T, bool> predicate)
     {
         var fieldInfo = target.GetType().GetField(fieldName, BindingFlags.NonPublic | BindingFlags.Instance);
-        if (fieldInfo == null)
+        if (fieldInfo is null)
         {
             throw new InvalidOperationException($"Field '{fieldName}' not found on type '{target.GetType().Name}'");
         }
@@ -28,7 +32,7 @@ public sealed class SerialLineReaderTest
         while (DateTime.UtcNow < endTime)
         {
             var value = (T?)fieldInfo.GetValue(target);
-            if (value != null && predicate(value))
+            if ((value is not null) && predicate(value))
             {
                 return true;
             }
@@ -37,6 +41,10 @@ public sealed class SerialLineReaderTest
 
         return false;
     }
+
+    // ------------------------------------------------------------
+    // Tests
+    // ------------------------------------------------------------
 
     [Fact]
     public void Test_NormalReceive()
