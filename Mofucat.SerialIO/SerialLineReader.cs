@@ -1,7 +1,6 @@
 namespace Mofucat.SerialIO;
 
 using System.Buffers;
-using System.Diagnostics;
 using System.IO.Ports;
 
 public sealed class SerialLineReader : IDisposable
@@ -16,8 +15,8 @@ public sealed class SerialLineReader : IDisposable
 
     private const int StackAllocThreshold = 512;
 
-    private readonly SerialPort serialPort;
     private readonly Lock sync = new();
+    private readonly SerialPort serialPort;
     private readonly byte[] delimiter;
     private readonly int maxBufferSize;
     private readonly bool ownsSerialPort;
@@ -25,36 +24,99 @@ public sealed class SerialLineReader : IDisposable
     private int disposed;
 
     private byte[] buffer;
-    private int head;  // 読み取り開始位置
-    private int tail;  // 書き込み位置
-    private int count; // バッファ内のデータ数
-    private int searchStart; // 次回の終端検索開始位置（headからの相対位置）
+    private int head;  // read position
+    private int tail;  // write position
+    private int count; // buffered data size
+    private int search; // next search start position (relative to head)
 
+    // ------------------------------------------------------------
     // Statics
+    // ------------------------------------------------------------
 
     private long totalLinesReceived;
     private long totalBytesReceived;
     private long totalOverflowCount;
     private long totalBytesDiscarded;
     private long totalEmptyLinesSkipped;
-    private int peakBufferUsage;
     private long totalDiscardCount;
+    private int peakBufferUsage;
 
-    // ReSharper disable ConvertToAutoProperty
-    public long TotalLinesReceived => totalLinesReceived;
+    public long TotalLinesReceived
+    {
+        get
+        {
+            lock (sync)
+            {
+                return totalLinesReceived;
+            }
+        }
+    }
 
-    public long TotalBytesReceived => totalBytesReceived;
+    public long TotalBytesReceived
+    {
+        get
+        {
+            lock (sync)
+            {
+                return totalBytesReceived;
+            }
+        }
+    }
 
-    public long TotalOverflowCount => totalOverflowCount;
+    public long TotalOverflowCount
+    {
+        get
+        {
+            lock (sync)
+            {
+                return totalOverflowCount;
+            }
+        }
+    }
 
-    public long TotalBytesDiscarded => totalBytesDiscarded;
+    public long TotalBytesDiscarded
+    {
+        get
+        {
+            lock (sync)
+            {
+                return totalBytesDiscarded;
+            }
+        }
+    }
 
-    public long TotalEmptyLinesSkipped => totalEmptyLinesSkipped;
+    public long TotalEmptyLinesSkipped
+    {
+        get
+        {
+            lock (sync)
+            {
+                return totalEmptyLinesSkipped;
+            }
+        }
+    }
 
-    public long TotalDiscardCount => totalDiscardCount;
+    public long TotalDiscardCount
+    {
+        get
+        {
+            lock (sync)
+            {
+                return totalDiscardCount;
+            }
+        }
+    }
 
-    public int PeakBufferUsage => peakBufferUsage;
-    // ReSharper restore ConvertToAutoProperty
+    public int PeakBufferUsage
+    {
+        get
+        {
+            lock (sync)
+            {
+                return peakBufferUsage;
+            }
+        }
+    }
 
     public int CurrentBufferUsage
     {
@@ -67,7 +129,9 @@ public sealed class SerialLineReader : IDisposable
         }
     }
 
-    public int MaxBufferSize => maxBufferSize;
+    // ------------------------------------------------------------
+    // Constructor
+    // ------------------------------------------------------------
 
     public SerialLineReader(
         SerialPort serialPort,
@@ -87,7 +151,7 @@ public sealed class SerialLineReader : IDisposable
         head = 0;
         tail = 0;
         count = 0;
-        searchStart = 0;
+        search = 0;
 
         serialPort.DataReceived += OnDataReceived;
     }
@@ -108,70 +172,54 @@ public sealed class SerialLineReader : IDisposable
         }
     }
 
+    // ------------------------------------------------------------
+    // Discard
+    // ------------------------------------------------------------
+
     public int DiscardBuffer()
     {
         lock (sync)
         {
             var discardedBytes = count;
 
-            // [MEMO] これを採用するか？
-            // 統計情報を更新（空でも呼び出し回数はカウント）
+            // Update statistics
             totalDiscardCount++;
-
             if (discardedBytes > 0)
             {
-                Debug.WriteLine($"[Discard] Discarding {discardedBytes} bytes from buffer");
                 totalBytesDiscarded += discardedBytes;
             }
-            else
-            {
-                Debug.WriteLine("[Discard] Buffer is already empty");
-            }
 
-            // 位置情報を初期状態にリセット
+            // Reset pointers
             head = 0;
             tail = 0;
             count = 0;
-            searchStart = 0;
-
-            Debug.WriteLine("[Discard] Buffer reset: head=0, tail=0, count=0, searchStart=0");
+            search = 0;
 
             return discardedBytes;
         }
     }
 
+    // ------------------------------------------------------------
+    // Receive Handling
+    // ------------------------------------------------------------
+
     private void OnDataReceived(object sender, SerialDataReceivedEventArgs e)
     {
-        // TODO
         lock (sync)
         {
-            try
+            var bytesToRead = serialPort.BytesToRead;
+            if (bytesToRead == 0)
             {
-                var bytesToRead = serialPort.BytesToRead;
-                if (bytesToRead == 0)
-                {
-                    return;
-                }
-
-                Debug.WriteLine($"[Receive] BytesToRead={bytesToRead}, Before: head={head}, tail={tail}, count={count}, searchStart={searchStart}");
-
-                // 受信データをリングバッファに書き込み
-                WriteToRingBuffer(bytesToRead);
-
-                Debug.WriteLine($"[Write] After: head={head}, tail={tail}, count={count}");
-
-                // 終端文字列を探して処理
-                ProcessLines();
-
-                Debug.WriteLine($"[Process] After: head={head}, tail={tail}, count={count}, searchStart={searchStart}");
+                return;
             }
-#pragma warning disable CA1031
-            catch (Exception ex)
-#pragma warning restore CA1031
-            {
-                Debug.WriteLine($"[Error] {ex.Message}");
-                Debug.WriteLine($"[Error] StackTrace: {ex.StackTrace}");
-            }
+
+            // Write data to ring buffer
+            WriteToRingBuffer(bytesToRead);
+
+            // Parse lines
+            ProcessLines();
+
+            System.Diagnostics.Debug.WriteLine($"Data received after. head=[{head}], tail=[{tail}], count=[{count}], search=[{search}]");
         }
     }
 
@@ -180,40 +228,41 @@ public sealed class SerialLineReader : IDisposable
         var availableSpace = maxBufferSize - count;
         var bytesToWrite = bytesToRead;
 
-        // バッファが満杯の場合、古いデータを破棄
+        // Discard old data if overflow
         if (bytesToRead > availableSpace)
         {
             var discardedBytes = bytesToRead - availableSpace;
-            Debug.WriteLine($"[Overflow] Discarding={discardedBytes} bytes");
 
-            // 統計情報を更新
+            // Update statics
             totalOverflowCount++;
             totalBytesDiscarded += discardedBytes;
 
-            // 古いデータを破棄（headを進める）
-            var oldHead = head;
+            // Discard old data (move head forward)
             head = (head + discardedBytes) % maxBufferSize;
             count -= discardedBytes;
 
-            // 検索開始位置を調整
-            searchStart = Math.Max(0, searchStart - discardedBytes);
+            // Set search position
+            search = Math.Max(0, search - discardedBytes);
 
-            Debug.WriteLine($"[Overflow] head: {oldHead}->{head}, count={count}, searchStart={searchStart}");
-
-            BufferOverflow?.Invoke(this, discardedBytes);
+#pragma warning disable CA1031
+            try
+            {
+                BufferOverflow?.Invoke(this, discardedBytes);
+            }
+            catch
+            {
+                // Ignore
+            }
+#pragma warning restore CA1031
         }
 
-        // データを読み込み
+        // Read data from SerialPort into ring buffer
         var totalBytesRead = 0;
         while (totalBytesRead < bytesToWrite)
         {
-            // 現在のtail位置から書き込める連続領域のサイズを計算
+            // Calculate contiguous space available at tail
             int contiguousSpace;
-            if (count == 0)
-            {
-                contiguousSpace = maxBufferSize - tail;
-            }
-            else if (tail >= head)
+            if ((count == 0) || (tail >= head))
             {
                 contiguousSpace = maxBufferSize - tail;
             }
@@ -223,30 +272,25 @@ public sealed class SerialLineReader : IDisposable
             }
 
             var chunkSize = Math.Min(bytesToWrite - totalBytesRead, contiguousSpace);
-
             if (chunkSize <= 0)
             {
-                Debug.WriteLine($"[Write] Error: chunkSize={chunkSize}, tail={tail}, head={head}, count={count}, contiguousSpace={contiguousSpace}");
                 break;
             }
 
+            // Read from SerialPort
             var bytesRead = serialPort.Read(buffer, tail, chunkSize);
-
             if (bytesRead == 0)
             {
                 break;
             }
 
-            Debug.WriteLine($"[Write] Position={tail}, Length={bytesRead}");
-
+            // Update tail and count
             tail = (tail + bytesRead) % maxBufferSize;
             count += bytesRead;
             totalBytesRead += bytesRead;
 
-            // 統計情報を更新
+            // Update statistics
             totalBytesReceived += bytesRead;
-
-            // ピークバッファ使用量を更新
             if (count > peakBufferUsage)
             {
                 peakBufferUsage = count;
@@ -256,82 +300,68 @@ public sealed class SerialLineReader : IDisposable
 
     private void ProcessLines()
     {
-        var lineCount = 0;
-
         while (count > 0)
         {
-            // 前回の検索位置から終端文字列を検索
+            // Find delimiter in ring buffer
             var delimiterIndex = FindDelimiterInRingBuffer();
-
             if (delimiterIndex == -1)
             {
-                // 終端が見つからない場合、次回の検索開始位置を更新
-                searchStart = Math.Max(0, count - delimiter.Length + 1);
-                Debug.WriteLine($"[Search] Delimiter not found, searchStart updated to {searchStart}");
+                // Update search position for next time if not found
+                search = Math.Max(0, count - delimiter.Length + 1);
                 break;
             }
 
-            lineCount++;
-            Debug.WriteLine($"[Process] Line#{lineCount}, DelimiterAt={delimiterIndex}, LineLength={delimiterIndex}");
-
-            // 終端までのデータを取得してイベント発火
+            // Fire LineReceived event
             if (delimiterIndex > 0)
             {
-                // 統計情報を更新
+                // Update statistics
                 totalLinesReceived++;
 
-                // データをコピーせずに処理できる場合
+                // Check if line is contiguous
                 if (head + delimiterIndex <= maxBufferSize)
                 {
-                    // 連続したメモリ領域として処理
-                    ReadOnlySpan<byte> line = buffer.AsSpan(head, delimiterIndex);
-                    Debug.WriteLine($"[Process] Contiguous read: offset={head}, length={delimiterIndex}");
-                    LineReceived?.Invoke(this, line);
+                    // Process contiguous line
+                    LineReceived?.Invoke(this, buffer.AsSpan(head, delimiterIndex));
                 }
                 else
                 {
-                    // リングバッファの境界をまたぐ場合
+                    // Process ring-wrapped line
                     ProcessRingWrapLine(delimiterIndex);
                 }
             }
             else
             {
-                // 空行
+                // Empty line skipped
                 totalEmptyLinesSkipped++;
-                Debug.WriteLine("[Process] Empty line skipped");
             }
 
-            // 処理済みデータと終端文字列を削除
+            // Move head past the delimiter
             var bytesToRemove = delimiterIndex + delimiter.Length;
-            Debug.WriteLine($"[Process] Removing {bytesToRemove} bytes (line={delimiterIndex}, delimiter={delimiter.Length})");
-
             head = (head + bytesToRemove) % maxBufferSize;
             count -= bytesToRemove;
 
-            // 検索開始位置をリセット（新しい行の検索は先頭から）
-            searchStart = 0;
+            // Reset search position
+            search = 0;
         }
     }
 
-    private void ProcessRingWrapLine(int lineLength)
+    private void ProcessRingWrapLine(int delimiterIndex)
     {
-        // サイズが小さい場合はstackallocを使用
-        if (lineLength <= StackAllocThreshold)
+        // If the size is small, use stack allocation
+        if (delimiterIndex <= StackAllocThreshold)
         {
-            Span<byte> tempBuffer = stackalloc byte[lineLength];
+            Span<byte> tempBuffer = stackalloc byte[delimiterIndex];
             CopyFromRingBuffer(tempBuffer);
-            Debug.WriteLine($"[Process] Ring-wrap read (stackalloc): length={lineLength}");
             LineReceived?.Invoke(this, tempBuffer);
         }
         else
         {
-            // サイズが大きい場合はArrayPoolを使用
-            var tempBuffer = ArrayPool<byte>.Shared.Rent(lineLength);
+            // Use ArrayPool for larger sizes
+            var tempBuffer = ArrayPool<byte>.Shared.Rent(delimiterIndex);
             try
             {
-                CopyFromRingBuffer(tempBuffer.AsSpan(0, lineLength));
-                ReadOnlySpan<byte> line = tempBuffer.AsSpan(0, lineLength);
-                Debug.WriteLine($"[Process] Ring-wrap read (ArrayPool): length={lineLength}");
+                CopyFromRingBuffer(tempBuffer.AsSpan(0, delimiterIndex));
+                ReadOnlySpan<byte> line = tempBuffer.AsSpan(0, delimiterIndex);
                 LineReceived?.Invoke(this, line);
             }
             finally
@@ -343,35 +373,32 @@ public sealed class SerialLineReader : IDisposable
 
     private int FindDelimiterInRingBuffer()
     {
-        // 検索に必要な最小データ量をチェック
+        // Check if enough data to contain delimiter
         if (count < delimiter.Length)
         {
             return -1;
         }
 
-        // 検索開始位置から検索
+        // Search for delimiter in ring buffer
         var searchEnd = count - delimiter.Length + 1;
 
-        Debug.WriteLine($"[Search] Start={searchStart}, End={searchEnd}, Count={count}");
-
-        // 単一バイトの終端文字列の場合は最適化
+        // Single byte delimiter optimization
         if (delimiter.Length == 1)
         {
             var delimiterByte = delimiter[0];
-            for (var i = searchStart; i < count; i++)
+            for (var i = search; i < count; i++)
             {
                 var index = (head + i) % maxBufferSize;
                 if (buffer[index] == delimiterByte)
                 {
-                    Debug.WriteLine($"[Search] Found at position {i}");
                     return i;
                 }
             }
             return -1;
         }
 
-        // 複数バイトの終端文字列の場合
-        for (var i = searchStart; i < searchEnd; i++)
+        // Multi-byte delimiter search
+        for (var i = search; i < searchEnd; i++)
         {
             var found = true;
             for (var j = 0; j < delimiter.Length; j++)
@@ -383,9 +410,9 @@ public sealed class SerialLineReader : IDisposable
                     break;
                 }
             }
+
             if (found)
             {
-                Debug.WriteLine($"[Search] Found at position {i}");
                 return i;
             }
         }
@@ -395,20 +422,25 @@ public sealed class SerialLineReader : IDisposable
 
     private void CopyFromRingBuffer(Span<byte> destination)
     {
+        // Copy data from ring buffer to destination span
         var sourceIndex = head;
-        var remaining = destination.Length;
-        var destIndex = 0;
+        var destinationIndex = 0;
 
+        var remaining = destination.Length;
         while (remaining > 0)
         {
             var contiguousLength = Math.Min(remaining, maxBufferSize - sourceIndex);
-            buffer.AsSpan(sourceIndex, contiguousLength).CopyTo(destination.Slice(destIndex, contiguousLength));
+            buffer.AsSpan(sourceIndex, contiguousLength).CopyTo(destination.Slice(destinationIndex, contiguousLength));
 
             sourceIndex = (sourceIndex + contiguousLength) % maxBufferSize;
-            destIndex += contiguousLength;
+            destinationIndex += contiguousLength;
             remaining -= contiguousLength;
         }
     }
+
+    // ------------------------------------------------------------
+    // Statics
+    // ------------------------------------------------------------
 
 #pragma warning disable CA1024
     public Statistics GetStatistics()
@@ -447,16 +479,5 @@ public sealed class SerialLineReader : IDisposable
         public int PeakBufferUsage { get; init; }
 
         public int CurrentBufferUsage { get; init; }
-
-        // TODO
-        public override string ToString()
-        {
-            return $"Lines: {TotalLinesReceived}, " +
-                   $"Bytes: {TotalBytesReceived}, " +
-                   $"Overflows: {TotalOverflowCount}, " +
-                   $"Discarded: {TotalBytesDiscarded}, " +
-                   $"ManualDiscards: {TotalDiscardCount}, " +
-                   $"EmptyLines: {TotalEmptyLinesSkipped}";
-        }
     }
 }
