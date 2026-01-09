@@ -137,7 +137,7 @@ public sealed class SerialLineReader : IDisposable
         SerialPort serialPort,
         byte[]? delimiter = null,
         int maxBufferSize = 65536,
-        bool ownsSerialPort = true)
+        bool ownsSerialPort = false)
     {
         this.serialPort = serialPort ?? throw new ArgumentNullException(nameof(serialPort));
         this.delimiter = delimiter ?? [(byte)'\n'];
