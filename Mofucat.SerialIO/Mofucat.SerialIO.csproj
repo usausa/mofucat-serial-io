@@ -1,0 +1,15 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>net10.0;net9.0;net8.0</TargetFrameworks>
+    <CodeAnalysisRuleSet>..\Analyzers.ruleset</CodeAnalysisRuleSet>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <PackageId>Mofucat.SerialIO</PackageId>
+    <Title>Mofucat.SerialIO</Title>
+    <Description>Serial I/O helper</Description>
+    <PackageTags>serial serialport</PackageTags>
+  </PropertyGroup>
+
+</Project>

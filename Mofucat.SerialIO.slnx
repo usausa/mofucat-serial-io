@@ -1,7 +1,9 @@
 <Solution>
   <Folder Name="/Example/">
+    <Project Path="Example/Example.csproj" Id="d6e6cea6-5ca3-4d17-96bd-877be27a7cb3" />
   </Folder>
   <Folder Name="/Library/">
+    <Project Path="Mofucat.SerialIO/Mofucat.SerialIO.csproj" Id="ef66a54f-637b-40df-926f-55323f438c2c" />
   </Folder>
   <Folder Name="/Solution Items/">
     <File Path=".editorconfig" />
@@ -17,4 +19,5 @@
   </Folder>
   <Folder Name="/Test/">
   </Folder>
+  <Project Path="Mofucat.SerialIO.Tests/Mofucat.SerialIO.Tests.csproj" Id="aa4ceff9-e7e8-44ea-9bcd-f13640774769" />
 </Solution>
