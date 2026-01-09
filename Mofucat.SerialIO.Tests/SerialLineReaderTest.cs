@@ -30,14 +30,14 @@ public sealed class SerialLineReaderTest
         var list = new List<string>();
         using var event1 = new ManualResetEventSlim(false);
         using var event2 = new ManualResetEventSlim(false);
-        var events = new[] { event1, event2 };
+        ManualResetEventSlim?[] events = [event1, event2];
         var receivedCount = 0;
 
         reader.LineReceived += (_, lineBytes) =>
         {
             var line = Encoding.UTF8.GetString(lineBytes);
             list.Add(line);
-            events[receivedCount].Set();
+            events[receivedCount]?.Set();
             receivedCount++;
         };
 
@@ -78,17 +78,21 @@ public sealed class SerialLineReaderTest
         var list = new List<string>();
         using var lineEvent = new ManualResetEventSlim(false);
         using var overflowEvent = new ManualResetEventSlim(false);
+        ManualResetEventSlim?[] events = [lineEvent, overflowEvent];
+        var receivedCount = 0;
 
         reader.LineReceived += (_, lineBytes) =>
         {
             var line = Encoding.UTF8.GetString(lineBytes);
             list.Add(line);
-            lineEvent.Set();
+            events[receivedCount]?.Set();
+            receivedCount++;
         };
 
         reader.BufferOverflow += (_, _) =>
         {
-            overflowEvent.Set();
+            events[receivedCount]?.Set();
+            receivedCount++;
         };
 
         receivePort.Open();
@@ -125,14 +129,14 @@ public sealed class SerialLineReaderTest
         using var event1 = new ManualResetEventSlim(false);
         using var event2 = new ManualResetEventSlim(false);
         using var event3 = new ManualResetEventSlim(false);
-        var events = new[] { event1, event2, event3 };
+        ManualResetEventSlim?[] events = [event1, event2, event3];
         var receivedCount = 0;
 
         reader.LineReceived += (_, lineBytes) =>
         {
             var line = Encoding.UTF8.GetString(lineBytes);
             list.Add(line);
-            events[receivedCount].Set();
+            events[receivedCount]?.Set();
             receivedCount++;
         };
 
@@ -175,14 +179,14 @@ public sealed class SerialLineReaderTest
         var list = new List<string>();
         using var event1 = new ManualResetEventSlim(false);
         using var event2 = new ManualResetEventSlim(false);
-        var events = new[] { event1, event2 };
+        ManualResetEventSlim?[] events = [event1, event2];
         var receivedCount = 0;
 
         reader.LineReceived += (_, lineBytes) =>
         {
             var line = Encoding.UTF8.GetString(lineBytes);
             list.Add(line);
-            events[receivedCount].Set();
+            events[receivedCount]?.Set();
             receivedCount++;
         };
 
@@ -220,12 +224,15 @@ public sealed class SerialLineReaderTest
 
         var list = new List<string>();
         using var lineEvent = new ManualResetEventSlim(false);
+        ManualResetEventSlim?[] events = [lineEvent];
+        var receivedCount = 0;
 
         reader.LineReceived += (_, lineBytes) =>
         {
             var line = Encoding.UTF8.GetString(lineBytes);
             list.Add(line);
-            lineEvent.Set();
+            events[receivedCount]?.Set();
+            receivedCount++;
         };
 
         receivePort.Open();
@@ -263,15 +270,15 @@ public sealed class SerialLineReaderTest
 
         var list = new List<string>();
         using var event3 = new ManualResetEventSlim(false);
+        ManualResetEventSlim?[] events = [null, null, event3];
         var receivedCount = 0;
 
         reader.LineReceived += (_, lineBytes) =>
         {
-            receivedCount++;
             var line = Encoding.UTF8.GetString(lineBytes);
             list.Add(line);
-
-            if (receivedCount == 3) event3.Set();
+            events[receivedCount]?.Set();
+            receivedCount++;
         };
 
         receivePort.Open();
@@ -306,15 +313,15 @@ public sealed class SerialLineReaderTest
 
         var list = new List<string>();
         using var event2 = new ManualResetEventSlim(false);
+        ManualResetEventSlim?[] events = [null, event2];
         var receivedCount = 0;
 
         reader.LineReceived += (_, lineBytes) =>
         {
-            receivedCount++;
             var line = Encoding.UTF8.GetString(lineBytes);
             list.Add(line);
-
-            if (receivedCount == 2) event2.Set();
+            events[receivedCount]?.Set();
+            receivedCount++;
         };
 
         receivePort.Open();
@@ -348,15 +355,15 @@ public sealed class SerialLineReaderTest
 
         var list = new List<string>();
         using var event2 = new ManualResetEventSlim(false);
+        ManualResetEventSlim?[] events = [null, event2];
         var receivedCount = 0;
 
         reader.LineReceived += (_, lineBytes) =>
         {
-            receivedCount++;
             var line = Encoding.UTF8.GetString(lineBytes);
             list.Add(line);
-
-            if (receivedCount == 2) event2.Set();
+            events[receivedCount]?.Set();
+            receivedCount++;
         };
 
         receivePort.Open();
@@ -396,15 +403,15 @@ public sealed class SerialLineReaderTest
 
         var list = new List<string>();
         using var event2 = new ManualResetEventSlim(false);
+        ManualResetEventSlim?[] events = [null, event2];
         var receivedCount = 0;
 
         reader.LineReceived += (_, lineBytes) =>
         {
-            receivedCount++;
             var line = Encoding.UTF8.GetString(lineBytes);
             list.Add(line);
-
-            if (receivedCount == 2) event2.Set();
+            events[receivedCount]?.Set();
+            receivedCount++;
         };
 
         receivePort.Open();
@@ -440,12 +447,15 @@ public sealed class SerialLineReaderTest
 
         var list = new List<string>();
         using var lineEvent = new ManualResetEventSlim(false);
+        ManualResetEventSlim?[] events = [lineEvent];
+        var receivedCount = 0;
 
         reader.LineReceived += (_, lineBytes) =>
         {
             var line = Encoding.UTF8.GetString(lineBytes);
             list.Add(line);
-            lineEvent.Set();
+            events[receivedCount]?.Set();
+            receivedCount++;
         };
 
         receivePort.Open();
@@ -480,12 +490,15 @@ public sealed class SerialLineReaderTest
 
         var list = new List<string>();
         using var lineEvent = new ManualResetEventSlim(false);
+        ManualResetEventSlim?[] events = [lineEvent];
+        var receivedCount = 0;
 
         reader.LineReceived += (_, lineBytes) =>
         {
             var line = Encoding.UTF8.GetString(lineBytes);
             list.Add(line);
-            lineEvent.Set();
+            events[receivedCount]?.Set();
+            receivedCount++;
         };
 
         receivePort.Open();
@@ -518,15 +531,15 @@ public sealed class SerialLineReaderTest
 
         var list = new List<string>();
         using var event3 = new ManualResetEventSlim(false);
+        ManualResetEventSlim?[] events = [null, null, event3];
         var receivedCount = 0;
 
         reader.LineReceived += (_, lineBytes) =>
         {
-            receivedCount++;
             var line = Encoding.UTF8.GetString(lineBytes);
             list.Add(line);
-
-            if (receivedCount == 3) event3.Set();
+            events[receivedCount]?.Set();
+            receivedCount++;
         };
 
         receivePort.Open();
@@ -562,13 +575,15 @@ public sealed class SerialLineReaderTest
             maxBufferSize: 50);
 
         var list = new List<string>();
+        ManualResetEventSlim?[] events = [];
         var receivedCount = 0;
 
         reader.LineReceived += (_, lineBytes) =>
         {
-            receivedCount++;
             var line = Encoding.UTF8.GetString(lineBytes);
             list.Add(line);
+            events[receivedCount]?.Set();
+            receivedCount++;
         };
 
         receivePort.Open();
@@ -601,15 +616,15 @@ public sealed class SerialLineReaderTest
 
         var list = new List<string>();
         using var event2 = new ManualResetEventSlim(false);
+        ManualResetEventSlim?[] events = [null, event2];
         var receivedCount = 0;
 
         reader.LineReceived += (_, lineBytes) =>
         {
-            receivedCount++;
             var line = Encoding.UTF8.GetString(lineBytes);
             list.Add(line);
-
-            if (receivedCount == 2) event2.Set();
+            events[receivedCount]?.Set();
+            receivedCount++;
         };
 
         receivePort.Open();
@@ -648,12 +663,15 @@ public sealed class SerialLineReaderTest
 
         var list = new List<string>();
         using var lineEvent = new ManualResetEventSlim(false);
+        ManualResetEventSlim?[] events = [lineEvent];
+        var receivedCount = 0;
 
         reader.LineReceived += (_, lineBytes) =>
         {
             var line = Encoding.UTF8.GetString(lineBytes);
             list.Add(line);
-            lineEvent.Set();
+            events[receivedCount]?.Set();
+            receivedCount++;
         };
 
         receivePort.Open();
@@ -688,15 +706,15 @@ public sealed class SerialLineReaderTest
 
         var list = new List<string>();
         using var event5 = new ManualResetEventSlim(false);
+        ManualResetEventSlim?[] events = [null, null, null, null, event5];
         var receivedCount = 0;
 
         reader.LineReceived += (_, lineBytes) =>
         {
-            receivedCount++;
             var line = Encoding.UTF8.GetString(lineBytes);
             list.Add(line);
-
-            if (receivedCount == 5) event5.Set();
+            events[receivedCount]?.Set();
+            receivedCount++;
         };
 
         receivePort.Open();
@@ -741,12 +759,15 @@ public sealed class SerialLineReaderTest
 
         var list = new List<string>();
         using var lineEvent = new ManualResetEventSlim(false);
+        ManualResetEventSlim?[] events = [lineEvent];
+        var receivedCount = 0;
 
         reader.LineReceived += (_, lineBytes) =>
         {
             var line = Encoding.UTF8.GetString(lineBytes);
             list.Add(line);
-            lineEvent.Set();
+            events[receivedCount]?.Set();
+            receivedCount++;
         };
 
         receivePort.Open();
@@ -778,13 +799,15 @@ public sealed class SerialLineReaderTest
             maxBufferSize: 50);
 
         var list = new List<string>();
+        ManualResetEventSlim?[] events = [];
         var receivedCount = 0;
 
         reader.LineReceived += (_, lineBytes) =>
         {
-            receivedCount++;
             var line = Encoding.UTF8.GetString(lineBytes);
             list.Add(line);
+            events[receivedCount]?.Set();
+            receivedCount++;
         };
 
         receivePort.Open();
@@ -817,12 +840,15 @@ public sealed class SerialLineReaderTest
 
         var list = new List<string>();
         using var lineEvent = new ManualResetEventSlim(false);
+        ManualResetEventSlim?[] events = [lineEvent];
+        var receivedCount = 0;
 
         reader.LineReceived += (_, lineBytes) =>
         {
             var line = Encoding.UTF8.GetString(lineBytes);
             list.Add(line);
-            lineEvent.Set();
+            events[receivedCount]?.Set();
+            receivedCount++;
         };
 
         receivePort.Open();
@@ -859,11 +885,15 @@ public sealed class SerialLineReaderTest
             maxBufferSize: 10);
 
         var list = new List<string>();
+        ManualResetEventSlim?[] events = [];
+        var receivedCount = 0;
 
         reader.LineReceived += (_, lineBytes) =>
         {
             var line = Encoding.UTF8.GetString(lineBytes);
             list.Add(line);
+            events[receivedCount]?.Set();
+            receivedCount++;
         };
 
         receivePort.Open();
@@ -898,17 +928,21 @@ public sealed class SerialLineReaderTest
         var list = new List<string>();
         using var lineEvent = new ManualResetEventSlim(false);
         using var overflowEvent = new ManualResetEventSlim(false);
+        ManualResetEventSlim?[] events = [lineEvent, overflowEvent];
+        var receivedCount = 0;
 
         reader.LineReceived += (_, lineBytes) =>
         {
             var line = Encoding.UTF8.GetString(lineBytes);
             list.Add(line);
-            lineEvent.Set();
+            events[receivedCount]?.Set();
+            receivedCount++;
         };
 
         reader.BufferOverflow += (_, _) =>
         {
-            overflowEvent.Set();
+            events[receivedCount]?.Set();
+            receivedCount++;
         };
 
         receivePort.Open();
@@ -943,12 +977,15 @@ public sealed class SerialLineReaderTest
 
         var list = new List<string>();
         using var lineEvent = new ManualResetEventSlim(false);
+        ManualResetEventSlim?[] events = [lineEvent];
+        var receivedCount = 0;
 
         reader.LineReceived += (_, lineBytes) =>
         {
             var line = Encoding.UTF8.GetString(lineBytes);
             list.Add(line);
-            lineEvent.Set();
+            events[receivedCount]?.Set();
+            receivedCount++;
         };
 
         receivePort.Open();
@@ -987,15 +1024,15 @@ public sealed class SerialLineReaderTest
 
         var list = new List<string>();
         using var event3 = new ManualResetEventSlim(false);
+        ManualResetEventSlim?[] events = [null, null, event3];
         var receivedCount = 0;
 
         reader.LineReceived += (_, lineBytes) =>
         {
-            receivedCount++;
             var line = Encoding.UTF8.GetString(lineBytes);
             list.Add(line);
-
-            if (receivedCount == 3) event3.Set();
+            events[receivedCount]?.Set();
+            receivedCount++;
         };
 
         receivePort.Open();
@@ -1033,12 +1070,13 @@ public sealed class SerialLineReaderTest
             maxBufferSize: 20);
 
         using var event3 = new ManualResetEventSlim(false);
+        ManualResetEventSlim?[] events = [null, null, event3];
         var receivedCount = 0;
 
         reader.LineReceived += (_, _) =>
         {
+            events[receivedCount]?.Set();
             receivedCount++;
-            if (receivedCount == 3) event3.Set();
         };
 
         receivePort.Open();
@@ -1054,7 +1092,7 @@ public sealed class SerialLineReaderTest
         Thread.Sleep(SendWait);
         sendPort.Write("Line3\n");
 
-        event3.Wait(TimeSpan.FromMilliseconds(WaitTimeout * 2));
+        event3.Wait(TimeSpan.FromMilliseconds(WaitTimeout), TestContext.Current.CancellationToken);
 
         sendPort.Close();
 
@@ -1154,15 +1192,15 @@ public sealed class SerialLineReaderTest
 
         var list = new List<string>();
         using var event3 = new ManualResetEventSlim(false);
+        ManualResetEventSlim?[] events = [null, null, event3];
         var receivedCount = 0;
 
         reader.LineReceived += (_, lineBytes) =>
         {
-            receivedCount++;
             var line = Encoding.UTF8.GetString(lineBytes);
             list.Add(line);
-
-            if (receivedCount == 3) event3.Set();
+            events[receivedCount]?.Set();
+            receivedCount++;
         };
 
         receivePort.Open();
@@ -1207,10 +1245,13 @@ public sealed class SerialLineReaderTest
             maxBufferSize: 30);
 
         using var lineEvent = new ManualResetEventSlim(false);
+        ManualResetEventSlim?[] events = [lineEvent];
+        var receivedCount = 0;
 
         reader.LineReceived += (_, _) =>
         {
-            lineEvent.Set();
+            events[receivedCount]?.Set();
+            receivedCount++;
         };
 
         receivePort.Open();
@@ -1257,12 +1298,15 @@ public sealed class SerialLineReaderTest
 
         var list = new List<string>();
         using var lineEvent = new ManualResetEventSlim(false);
+        ManualResetEventSlim?[] events = [lineEvent];
+        var receivedCount = 0;
 
         reader.LineReceived += (_, lineBytes) =>
         {
             var line = Encoding.UTF8.GetString(lineBytes);
             list.Add(line);
-            lineEvent.Set();
+            events[receivedCount]?.Set();
+            receivedCount++;
         };
 
         receivePort.Open();
@@ -1342,12 +1386,12 @@ public sealed class SerialLineReaderTest
 
         var list = new List<string>();
         using var event3 = new ManualResetEventSlim(false);
+        ManualResetEventSlim?[] events = [null, null, event3];
         var receivedCount = 0;
         var shouldDiscard = false;
 
         reader.LineReceived += (_, lineBytes) =>
         {
-            receivedCount++;
             var line = Encoding.UTF8.GetString(lineBytes);
             list.Add(line);
 
@@ -1356,7 +1400,8 @@ public sealed class SerialLineReaderTest
                 shouldDiscard = true;
             }
 
-            if (receivedCount == 3) event3.Set();
+            events[receivedCount]?.Set();
+            receivedCount++;
         };
 
         receivePort.Open();
@@ -1404,10 +1449,13 @@ public sealed class SerialLineReaderTest
             maxBufferSize: 50);
 
         using var lineEvent = new ManualResetEventSlim(false);
+        ManualResetEventSlim?[] events = [lineEvent];
+        var receivedCount = 0;
 
         reader.LineReceived += (_, _) =>
         {
-            lineEvent.Set();
+            events[receivedCount]?.Set();
+            receivedCount++;
         };
 
         receivePort.Open();
