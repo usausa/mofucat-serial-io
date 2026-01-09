@@ -416,3 +416,8 @@ FodyWeavers.xsd
 *.msix
 *.msm
 *.msp
+
+# Customize
+desktop.ini
+__*
+/Example/Properties/launchSettings.json
