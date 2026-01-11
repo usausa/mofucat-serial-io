@@ -20,7 +20,7 @@
     <Authors>machi_pon</Authors>
     <Copyright>Copyright (c) 2026 machi_pon</Copyright>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <PackageProjectUrl>https://github.com/usausa/mofucat-serial-io.git</PackageProjectUrl>
+    <PackageProjectUrl>https://github.com/usausa/mofucat-serial-io</PackageProjectUrl>
     <RepositoryType>git</RepositoryType>
   </PropertyGroup>
 
