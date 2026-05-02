@@ -2,6 +2,7 @@ namespace Mofucat.SerialIO;
 
 using System.Buffers;
 using System.IO.Ports;
+using System.Runtime.CompilerServices;
 
 public sealed class SerialLineReader : IDisposable
 {
@@ -262,11 +263,10 @@ public sealed class SerialLineReader : IDisposable
 
             // Parse lines
             ProcessLines();
-
-            System.Diagnostics.Debug.WriteLine($"Data received after. head=[{head}], tail=[{tail}], count=[{count}], search=[{search}]");
         }
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
     private void WriteToRingBuffer(int bytesToRead)
     {
         var availableSpace = maxBufferSize - count;
@@ -334,6 +334,7 @@ public sealed class SerialLineReader : IDisposable
         }
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
     private void ProcessLines()
     {
         while (count > 0)
@@ -407,6 +408,7 @@ public sealed class SerialLineReader : IDisposable
         }
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
     private int FindDelimiterInRingBuffer()
     {
         // Check if enough data to contain delimiter
@@ -415,41 +417,85 @@ public sealed class SerialLineReader : IDisposable
             return -1;
         }
 
-        // Search for delimiter in ring buffer
-        var searchEnd = count - delimiter.Length + 1;
+        // Split ring buffer into 2
+        var searchCount = count - search;
+        var startAbs = (head + search) % maxBufferSize;
 
-        // Single byte delimiter optimization
+        // Single byte delimiter
         if (delimiter.Length == 1)
         {
             var delimiterByte = delimiter[0];
-            for (var i = search; i < count; i++)
+
+            var segment1Length = Math.Min(searchCount, maxBufferSize - startAbs);
+            var idx = buffer.AsSpan(startAbs, segment1Length).IndexOf(delimiterByte);
+            if (idx >= 0)
             {
-                var index = (head + i) % maxBufferSize;
-                if (buffer[index] == delimiterByte)
+                return search + idx;
+            }
+
+            var seg2Len = searchCount - segment1Length;
+            if (seg2Len > 0)
+            {
+                var idx2 = buffer.AsSpan(0, seg2Len).IndexOf(delimiterByte);
+                if (idx2 >= 0)
                 {
-                    return i;
+                    return search + segment1Length + idx2;
                 }
             }
+
             return -1;
         }
 
-        // Multi-byte delimiter search
-        for (var i = search; i < searchEnd; i++)
+        // Multibyte delimiter
+        var delimSpan = delimiter.AsSpan();
+        var delimLen = delimSpan.Length;
+
+        var mSeg1Len = Math.Min(searchCount, maxBufferSize - startAbs);
+        var span1 = buffer.AsSpan(startAbs, mSeg1Len);
+
+        if (mSeg1Len >= delimLen)
         {
-            var found = true;
-            for (var j = 0; j < delimiter.Length; j++)
+            var idx = span1.IndexOf(delimSpan);
+            if (idx >= 0)
             {
-                var index = (head + i + j) % maxBufferSize;
-                if (buffer[index] != delimiter[j])
+                return search + idx;
+            }
+        }
+
+        var mSeg2Len = searchCount - mSeg1Len;
+        if (mSeg2Len > 0)
+        {
+            var span2 = buffer.AsSpan(0, mSeg2Len);
+
+            // Check wrap-boundary overlap
+            var overlapStart = Math.Max(0, mSeg1Len - (delimLen - 1));
+            for (var i = overlapStart; i < mSeg1Len; i++)
+            {
+                var found = true;
+                for (var j = 0; j < delimLen; j++)
                 {
-                    found = false;
-                    break;
+                    var pos = i + j;
+                    var b = pos < mSeg1Len ? span1[pos] : span2[pos - mSeg1Len];
+                    if (b != delimSpan[j])
+                    {
+                        found = false;
+                        break;
+                    }
+                }
+
+                if (found)
+                {
+                    return search + i;
                 }
             }
 
-            if (found)
+            if (mSeg2Len >= delimLen)
             {
-                return i;
+                var idx2 = span2.IndexOf(delimSpan);
+                if (idx2 >= 0)
+                {
+                    return search + mSeg1Len + idx2;
+                }
             }
         }
 
@@ -498,7 +544,7 @@ public sealed class SerialLineReader : IDisposable
     }
 #pragma warning restore CA1024
 
-    public sealed class Statistics
+    public readonly record struct Statistics
     {
         public long TotalLinesReceived { get; init; }
 
