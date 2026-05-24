@@ -4,14 +4,16 @@ using System.Buffers;
 using System.IO.Ports;
 using System.Runtime.CompilerServices;
 
+public delegate void LineReceivedCallback(object sender, ReadOnlySpan<byte> line);
+
+public delegate void BufferOverflowCallback(object sender, int discardedBytes);
+
 public sealed class SerialLineReader : IDisposable
 {
 #pragma warning disable CA1003
-    public event EventHandler<ReadOnlySpan<byte>>? LineReceived;
-#pragma warning restore CA1003
+    public event LineReceivedCallback? LineReceived;
 
-#pragma warning disable CA1003
-    public event EventHandler<int>? BufferOverflow;
+    public event BufferOverflowCallback? BufferOverflow;
 #pragma warning restore CA1003
 
     private const int StackAllocThreshold = 512;
@@ -266,7 +268,7 @@ public sealed class SerialLineReader : IDisposable
         }
     }
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void WriteToRingBuffer(int bytesToRead)
     {
         var availableSpace = maxBufferSize - count;
@@ -334,7 +336,7 @@ public sealed class SerialLineReader : IDisposable
         }
     }
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void ProcessLines()
     {
         while (count > 0)
@@ -408,7 +410,7 @@ public sealed class SerialLineReader : IDisposable
         }
     }
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private int FindDelimiterInRingBuffer()
     {
         // Check if enough data to contain delimiter
