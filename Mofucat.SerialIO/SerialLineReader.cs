@@ -266,7 +266,7 @@ public sealed class SerialLineReader : IDisposable
         }
     }
 
-    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
     private void WriteToRingBuffer(int bytesToRead)
     {
         var availableSpace = maxBufferSize - count;
@@ -334,7 +334,7 @@ public sealed class SerialLineReader : IDisposable
         }
     }
 
-    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
     private void ProcessLines()
     {
         while (count > 0)
@@ -408,7 +408,7 @@ public sealed class SerialLineReader : IDisposable
         }
     }
 
-    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
     private int FindDelimiterInRingBuffer()
     {
         // Check if enough data to contain delimiter
