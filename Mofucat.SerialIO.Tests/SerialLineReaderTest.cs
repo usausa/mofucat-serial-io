@@ -1,6 +1,6 @@
 // ReSharper disable AccessToDisposedClosure
 // ReSharper disable StringLiteralTypo
-#pragma warning disable CA1707
+// ReSharper disable CommentTypo
 namespace Mofucat.SerialIO;
 
 using System.IO.Ports;
@@ -42,12 +42,27 @@ public sealed class SerialLineReaderTest
         return false;
     }
 
+    private static bool WaitForStats(SerialLineReader reader, Func<SerialLineReader.Statistics, bool> predicate)
+    {
+        var endTime = DateTime.UtcNow.AddMilliseconds(WaitValueTimeout);
+        while (DateTime.UtcNow < endTime)
+        {
+            if (predicate(reader.GetStatistics()))
+            {
+                return true;
+            }
+            Thread.Sleep(10);
+        }
+
+        return false;
+    }
+
     // ------------------------------------------------------------
     // Tests
     // ------------------------------------------------------------
 
     [Fact]
-    public void Test_NormalReceive()
+    public void TestNormalReceive()
     {
         // Normal receive rest
 
@@ -104,7 +119,7 @@ public sealed class SerialLineReaderTest
     }
 
     [Fact]
-    public void Test_BufferOverflow()
+    public void TestBufferOverflow()
     {
         // Overflow test
 
@@ -162,7 +177,7 @@ public sealed class SerialLineReaderTest
     }
 
     [Fact]
-    public void Test_RingWrap()
+    public void TestRingWrap()
     {
         // Ring buffer wrap-around test
 
@@ -223,7 +238,7 @@ public sealed class SerialLineReaderTest
     }
 
     [Fact]
-    public void Test_MultiByteDelimiter()
+    public void TestMultiByteDelimiter()
     {
         // Multi bytes terminator test
 
@@ -278,7 +293,7 @@ public sealed class SerialLineReaderTest
     }
 
     [Fact]
-    public void Test_SearchOptimization()
+    public void TestSearchOptimization()
     {
         // Search optimization test
 
@@ -340,7 +355,7 @@ public sealed class SerialLineReaderTest
     }
 
     [Fact]
-    public void Test_ContinuousData()
+    public void TestContinuousData()
     {
         // Continuous data reception test
 
@@ -390,7 +405,7 @@ public sealed class SerialLineReaderTest
     }
 
     [Fact]
-    public void Test_EmptyLines()
+    public void TestEmptyLines()
     {
         // Empty line handling test
 
@@ -440,7 +455,7 @@ public sealed class SerialLineReaderTest
     }
 
     [Fact]
-    public void Test_StackAllocThreshold()
+    public void TestStackAllocThreshold()
     {
         // stackalloc and ArrayPool threshold test
 
@@ -497,7 +512,7 @@ public sealed class SerialLineReaderTest
     }
 
     [Fact]
-    public void Test_DelimiterAtBufferBoundary()
+    public void TestDelimiterAtBufferBoundary()
     {
         // Delimiter at buffer boundary test
 
@@ -552,7 +567,7 @@ public sealed class SerialLineReaderTest
     }
 
     [Fact]
-    public void Test_MultiByteDelimiterSplit()
+    public void TestMultiByteDelimiterSplit()
     {
         // Multi-byte delimiter split reception test
 
@@ -604,7 +619,7 @@ public sealed class SerialLineReaderTest
     }
 
     [Fact]
-    public void Test_MaxBufferSizeExactly()
+    public void TestMaxBufferSizeExactly()
     {
         // Exact buffer size data test
 
@@ -653,7 +668,7 @@ public sealed class SerialLineReaderTest
     }
 
     [Fact]
-    public void Test_RepeatedOverflow()
+    public void TestRepeatedOverflow()
     {
         // Repeated overflow test
 
@@ -706,7 +721,7 @@ public sealed class SerialLineReaderTest
     }
 
     [Fact]
-    public void Test_DelimiterOnly()
+    public void TestDelimiterOnly()
     {
         // Delimiter-only test
 
@@ -755,7 +770,7 @@ public sealed class SerialLineReaderTest
     }
 
     [Fact]
-    public void Test_LargeLineWithStackAlloc()
+    public void TestLargeLineWithStackAlloc()
     {
         // Large data crossing ring boundary (ArrayPool usage test)
 
@@ -811,7 +826,7 @@ public sealed class SerialLineReaderTest
     }
 
     [Fact]
-    public void Test_SearchStartAtBoundary()
+    public void TestSearchStartAtBoundary()
     {
         // Search start at boundary test
 
@@ -864,7 +879,7 @@ public sealed class SerialLineReaderTest
     }
 
     [Fact]
-    public void Test_AlternatingHeadTailPositions()
+    public void TestAlternatingHeadTailPositions()
     {
         // Alternating head/tail positions test
 
@@ -925,7 +940,7 @@ public sealed class SerialLineReaderTest
     }
 
     [Fact]
-    public void Test_PartialDelimiterAtEnd()
+    public void TestPartialDelimiterAtEnd()
     {
         // Partial delimiter at buffer end test
 
@@ -974,7 +989,7 @@ public sealed class SerialLineReaderTest
     }
 
     [Fact]
-    public void Test_ConsecutiveDelimiters()
+    public void TestConsecutiveDelimiters()
     {
         // Consecutive delimiters test
 
@@ -1022,7 +1037,7 @@ public sealed class SerialLineReaderTest
     }
 
     [Fact]
-    public void Test_SingleByteReads()
+    public void TestSingleByteReads()
     {
         // Single byte read test
 
@@ -1076,7 +1091,7 @@ public sealed class SerialLineReaderTest
     }
 
     [Fact]
-    public void Test_FullBufferNoDelimiter()
+    public void TestFullBufferNoDelimiter()
     {
         // Full buffer without delimiter test
 
@@ -1127,7 +1142,7 @@ public sealed class SerialLineReaderTest
     }
 
     [Fact]
-    public void Test_OverflowThenDelimiter()
+    public void TestOverflowThenDelimiter()
     {
         // Overflow followed by delimiter test (incomplete data)
 
@@ -1185,7 +1200,7 @@ public sealed class SerialLineReaderTest
     }
 
     [Fact]
-    public void Test_ContinuousOverflowNoDelimiter()
+    public void TestContinuousOverflowNoDelimiter()
     {
         // Continuous overflow without delimiter test
 
@@ -1242,7 +1257,7 @@ public sealed class SerialLineReaderTest
     }
 
     [Fact]
-    public void Test_OverflowThenMultipleLines()
+    public void TestOverflowThenMultipleLines()
     {
         // Overflow followed by multiple lines test
 
@@ -1299,7 +1314,7 @@ public sealed class SerialLineReaderTest
     }
 
     [Fact]
-    public void Test_Statistics()
+    public void TestStatistics()
     {
         // Statistics verification test
 
@@ -1355,7 +1370,7 @@ public sealed class SerialLineReaderTest
     }
 
     [Fact]
-    public void Test_DiscardBuffer_Basic()
+    public void TestDiscardBufferBasic()
     {
         // Basic buffer discard test
 
@@ -1411,7 +1426,7 @@ public sealed class SerialLineReaderTest
     }
 
     [Fact]
-    public void Test_DiscardBuffer_Empty()
+    public void TestDiscardBufferEmpty()
     {
         // Empty buffer discard test
 
@@ -1446,7 +1461,7 @@ public sealed class SerialLineReaderTest
     }
 
     [Fact]
-    public void Test_DiscardBuffer_WithRingWrap()
+    public void TestDiscardBufferWithRingWrap()
     {
         // Buffer discard with ring wrap test
 
@@ -1512,7 +1527,7 @@ public sealed class SerialLineReaderTest
     }
 
     [Fact]
-    public void Test_DiscardBuffer_Statistics()
+    public void TestDiscardBufferStatistics()
     {
         // Discard buffer statistics test
 
@@ -1573,7 +1588,7 @@ public sealed class SerialLineReaderTest
     }
 
     [Fact]
-    public void Test_DiscardBuffer_AfterPartialData()
+    public void TestDiscardBufferAfterPartialData()
     {
         // Buffer discard after partial data reception test
 
@@ -1633,7 +1648,7 @@ public sealed class SerialLineReaderTest
     }
 
     [Fact]
-    public void Test_DiscardBuffer_MultipleDiscards()
+    public void TestDiscardBufferMultipleDiscards()
     {
         // Multiple consecutive discards test
         // Setup
@@ -1679,7 +1694,7 @@ public sealed class SerialLineReaderTest
     }
 
     [Fact]
-    public void Test_DiscardBuffer_DuringReceive()
+    public void TestDiscardBufferDuringReceive()
     {
         // Buffer discard during reception test
 
@@ -1754,7 +1769,7 @@ public sealed class SerialLineReaderTest
     }
 
     [Fact]
-    public void Test_DiscardBuffer_WithPeakUsage()
+    public void TestDiscardBufferWithPeakUsage()
     {
         // Buffer discard with peak usage tracking test
 
@@ -1809,5 +1824,257 @@ public sealed class SerialLineReaderTest
         Assert.Equal(40, stats3.PeakBufferUsage);
 
         sendPort.Close();
+    }
+
+    [Fact]
+    public void TestBurstDouble()
+    {
+        // Burst 2x: maxBufferSize=16, threshold=32
+        // junk16 (no delimiter) + "abc\ndefgh\nijklm\n" (16 bytes) = 32 bytes total
+        // Expected: lines=["abc","defgh","ijklm"], received=32, discarded=16, overflow=1, lines=3
+
+        using var receivePort = new SerialPort(ReceivePort, 9600);
+        using var sendPort = new SerialPort(SendPort, 9600);
+        using var reader = new SerialLineReader(
+            receivePort,
+            delimiter: [(byte)'\n'],
+            maxBufferSize: 16);
+
+        var lines = new List<string>();
+        reader.LineReceived += (_, lineBytes) =>
+        {
+            lines.Add(Encoding.UTF8.GetString(lineBytes));
+        };
+
+        receivePort.ReceivedBytesThreshold = 32;
+        receivePort.Open();
+        sendPort.Open();
+
+        // Send exactly 32 bytes in one write: 16 junk (no delimiter) + 16 bytes with delimiters
+        var junk16 = "ABCDEFGHIJKLMNOP"; // 16 bytes, no '\n'
+        var tail16 = "abc\ndefgh\nijklm\n"; // 16 bytes
+        Assert.Equal(16, Encoding.UTF8.GetByteCount(junk16));
+        Assert.Equal(16, Encoding.UTF8.GetByteCount(tail16));
+        sendPort.Write(junk16 + tail16);
+
+        // Wait until TotalBytesReceived == 32
+        Assert.True(WaitForStats(reader, s => s.TotalBytesReceived >= 32));
+
+        sendPort.Close();
+
+        var stats = reader.GetStatistics();
+        Assert.Equal(32, stats.TotalBytesReceived);
+        Assert.Equal(16, stats.TotalBytesDiscarded);
+        Assert.Equal(1, stats.TotalOverflowCount);
+        Assert.Equal(3, stats.TotalLinesReceived);
+        Assert.Equal(0, stats.CurrentBufferUsage);
+        Assert.Equal(3, lines.Count);
+        Assert.Equal("abc", lines[0]);
+        Assert.Equal("defgh", lines[1]);
+        Assert.Equal("ijklm", lines[2]);
+    }
+
+    [Fact]
+    public void TestBurstTwoPointFive()
+    {
+        // Burst 2.5x: maxBufferSize=16, threshold=40
+        // junk24 (no delimiter) + "abc\ndefgh\nijklm\n" (16 bytes) = 40 bytes total
+        // Expected: discarded=24, received=40, lines same as above
+
+        using var receivePort = new SerialPort(ReceivePort, 9600);
+        using var sendPort = new SerialPort(SendPort, 9600);
+        using var reader = new SerialLineReader(
+            receivePort,
+            delimiter: [(byte)'\n'],
+            maxBufferSize: 16);
+
+        var lines = new List<string>();
+        reader.LineReceived += (_, lineBytes) =>
+        {
+            lines.Add(Encoding.UTF8.GetString(lineBytes));
+        };
+
+        receivePort.ReceivedBytesThreshold = 40;
+        receivePort.Open();
+        sendPort.Open();
+
+        // Send exactly 40 bytes: 24 junk + 16 bytes with delimiters
+        var junk24 = "ABCDEFGHIJKLMNOPQRSTUVWX"; // 24 bytes, no '\n'
+        var tail16 = "abc\ndefgh\nijklm\n"; // 16 bytes
+        Assert.Equal(24, Encoding.UTF8.GetByteCount(junk24));
+        Assert.Equal(16, Encoding.UTF8.GetByteCount(tail16));
+        sendPort.Write(junk24 + tail16);
+
+        Assert.True(WaitForStats(reader, s => s.TotalBytesReceived >= 40));
+
+        sendPort.Close();
+
+        var stats = reader.GetStatistics();
+        Assert.Equal(40, stats.TotalBytesReceived);
+        Assert.Equal(24, stats.TotalBytesDiscarded);
+        Assert.Equal(1, stats.TotalOverflowCount);
+        Assert.Equal(3, stats.TotalLinesReceived);
+        Assert.Equal(0, stats.CurrentBufferUsage);
+        Assert.Equal(3, lines.Count);
+        Assert.Equal("abc", lines[0]);
+        Assert.Equal("defgh", lines[1]);
+        Assert.Equal("ijklm", lines[2]);
+    }
+
+    [Fact]
+    public void TestBurstWithExistingData()
+    {
+        // Burst with pre-existing data: maxBufferSize=16
+        // Phase1: threshold=1, send 10 bytes junk (no delimiter), wait for buffer usage==10
+        // Phase2: threshold=40, send 40 bytes (junk24 + "xy\nhello\nworlds\n")
+        // Expected: discarded=34 (10 existing + 24 drained), received=50, lines=["xy","hello","worlds"], overflow=1
+
+        using var receivePort = new SerialPort(ReceivePort, 9600);
+        using var sendPort = new SerialPort(SendPort, 9600);
+        using var reader = new SerialLineReader(
+            receivePort,
+            delimiter: [(byte)'\n'],
+            maxBufferSize: 16);
+
+        var lines = new List<string>();
+        reader.LineReceived += (_, lineBytes) =>
+        {
+            lines.Add(Encoding.UTF8.GetString(lineBytes));
+        };
+
+        receivePort.ReceivedBytesThreshold = 1;
+        receivePort.Open();
+        sendPort.Open();
+
+        // Phase 1: send 10 bytes junk, wait for it to be buffered
+        var junk10 = "ABCDEFGHIJ"; // 10 bytes, no '\n'
+        Assert.Equal(10, Encoding.UTF8.GetByteCount(junk10));
+        sendPort.Write(junk10);
+
+        // Wait until CurrentBufferUsage == 10
+        Assert.True(WaitForStats(reader, s => s.CurrentBufferUsage == 10));
+
+        // Phase 2: switch threshold and send 40 bytes
+        receivePort.ReceivedBytesThreshold = 40;
+        var junk24 = "ABCDEFGHIJKLMNOPQRSTUVWX"; // 24 bytes, no '\n'
+        var tail16 = "xy\nhello\nworlds\n";         // 16 bytes
+        Assert.Equal(24, Encoding.UTF8.GetByteCount(junk24));
+        Assert.Equal(16, Encoding.UTF8.GetByteCount(tail16));
+        sendPort.Write(junk24 + tail16);
+
+        // Wait until TotalBytesReceived == 50
+        Assert.True(WaitForStats(reader, s => s.TotalBytesReceived >= 50));
+
+        sendPort.Close();
+
+        var stats = reader.GetStatistics();
+        Assert.Equal(50, stats.TotalBytesReceived);
+        Assert.Equal(34, stats.TotalBytesDiscarded);
+        Assert.Equal(1, stats.TotalOverflowCount);
+        Assert.Equal(3, stats.TotalLinesReceived);
+        Assert.Equal(0, stats.CurrentBufferUsage);
+        Assert.Equal(3, lines.Count);
+        Assert.Equal("xy", lines[0]);
+        Assert.Equal("hello", lines[1]);
+        Assert.Equal("worlds", lines[2]);
+    }
+
+    [Fact]
+    public void TestDisposeRace()
+    {
+        // Dispose race: loop ~20 times, send while disposing — must not crash
+
+        using var receivePort = new SerialPort(ReceivePort, 9600);
+        using var sendPort = new SerialPort(SendPort, 9600);
+
+        receivePort.Open();
+        sendPort.Open();
+
+        // Fixed jitter sequence (0..4 ms) to avoid CA5394 (no security requirement here)
+        int[] jitterMs = [0, 1, 2, 3, 4, 0, 2, 1, 3, 4, 0, 1, 2, 3, 4, 0, 2, 1, 3, 4];
+
+        for (var i = 0; i < 20; i++)
+        {
+            var reader = new SerialLineReader(
+                receivePort,
+                delimiter: [(byte)'\n'],
+                maxBufferSize: 64);
+
+            // Send in background while we sleep briefly then dispose
+            var sendThread = new Thread(() =>
+            {
+                try
+                {
+                    for (var j = 0; j < 10; j++)
+                    {
+                        sendPort.Write("HELLO\n");
+                    }
+                }
+                catch (InvalidOperationException)
+                {
+                    // port closed during send is acceptable
+                }
+            });
+
+            sendThread.Start();
+
+            // Fixed tiny sleep before dispose
+            Thread.Sleep(jitterMs[i]);
+
+            reader.Dispose();
+            sendThread.Join(500);
+        }
+
+        sendPort.Close();
+        receivePort.Close();
+
+        // If we get here without crash/hang, test passes
+        Assert.True(true);
+    }
+
+    [Fact]
+    public void TestClosedPortHandlerError()
+    {
+        // Fire OnDataReceived on a reader whose port is closed — expect no exception leak,
+        // TotalReceiveErrors should become 1.
+
+        using var receivePort = new SerialPort(ReceivePort, 9600);
+        // Do NOT open the port — reading BytesToRead on a closed port throws InvalidOperationException
+        var reader = new SerialLineReader(
+            receivePort,
+            delimiter: [(byte)'\n'],
+            maxBufferSize: 64);
+
+        // Build SerialDataReceivedEventArgs via non-public constructor
+        var args = Activator.CreateInstance(
+            typeof(SerialDataReceivedEventArgs),
+            BindingFlags.Instance | BindingFlags.NonPublic,
+            binder: null,
+            args: [SerialData.Chars],
+            culture: null)!;
+
+        // Invoke the private handler via reflection — must not throw
+        var method = typeof(SerialLineReader).GetMethod(
+            "OnDataReceived",
+            BindingFlags.NonPublic | BindingFlags.Instance)!;
+        method.Invoke(reader, [reader, args]);
+
+        Assert.Equal(1, reader.TotalReceiveErrors);
+
+        reader.Dispose();
+    }
+
+    [Fact]
+    public void TestConstructorValidation()
+    {
+        // maxBufferSize=0 must throw ArgumentOutOfRangeException
+        using var port = new SerialPort(ReceivePort, 9600);
+
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new SerialLineReader(port, delimiter: [(byte)'\n'], maxBufferSize: 0));
+
+        // maxBufferSize=1 with 2-byte delimiter must throw ArgumentOutOfRangeException
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new SerialLineReader(port, delimiter: "\r\n"u8.ToArray(), maxBufferSize: 1));
     }
 }

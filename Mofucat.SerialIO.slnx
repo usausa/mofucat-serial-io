@@ -20,6 +20,6 @@
     <File Path="README.md" />
   </Folder>
   <Folder Name="/Test/">
+    <Project Path="Mofucat.SerialIO.Tests/Mofucat.SerialIO.Tests.csproj" />
   </Folder>
-  <Project Path="Mofucat.SerialIO.Tests/Mofucat.SerialIO.Tests.csproj" />
 </Solution>

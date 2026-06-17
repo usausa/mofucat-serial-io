@@ -42,6 +42,7 @@ public sealed class SerialLineReader : IDisposable
     private long totalBytesDiscarded;
     private long totalEmptyLinesSkipped;
     private long totalDiscardCount;
+    private long totalReceiveErrors;
     private int peakBufferUsage;
 
     public long TotalLinesReceived
@@ -132,6 +133,17 @@ public sealed class SerialLineReader : IDisposable
         }
     }
 
+    public long TotalReceiveErrors
+    {
+        get
+        {
+            lock (sync)
+            {
+                return totalReceiveErrors;
+            }
+        }
+    }
+
     // ------------------------------------------------------------
     // Constructor
     // ------------------------------------------------------------
@@ -147,6 +159,14 @@ public sealed class SerialLineReader : IDisposable
         if (this.delimiter.Length == 0)
         {
             throw new ArgumentException("Delimiter cannot be empty", nameof(delimiter));
+        }
+        if (maxBufferSize <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(maxBufferSize), maxBufferSize, "Buffer size must be positive");
+        }
+        if (maxBufferSize < this.delimiter.Length)
+        {
+            throw new ArgumentOutOfRangeException(nameof(maxBufferSize), maxBufferSize, "Buffer size must be greater than or equal to delimiter length");
         }
         this.maxBufferSize = maxBufferSize;
         this.ownsSerialPort = ownsSerialPort;
@@ -165,8 +185,11 @@ public sealed class SerialLineReader : IDisposable
         {
             serialPort.DataReceived -= OnDataReceived;
 
-            ArrayPool<byte>.Shared.Return(buffer);
-            buffer = null!;
+            lock (sync)
+            {
+                ArrayPool<byte>.Shared.Return(buffer);
+                buffer = null!;
+            }
 
             if (ownsSerialPort)
             {
@@ -252,46 +275,116 @@ public sealed class SerialLineReader : IDisposable
 
     private void OnDataReceived(object sender, SerialDataReceivedEventArgs e)
     {
+        try
+        {
+            lock (sync)
+            {
+                if (disposed != 0)
+                {
+                    return;
+                }
+
+                var bytesToRead = serialPort.BytesToRead;
+                if (bytesToRead == 0)
+                {
+                    return;
+                }
+
+                // Write data to ring buffer
+                WriteToRingBuffer(bytesToRead);
+
+                // Parse lines
+                ProcessLines();
+            }
+        }
+        catch (InvalidOperationException)
+        {
+            IncrementReceiveErrors();
+        }
+        catch (OperationCanceledException)
+        {
+            IncrementReceiveErrors();
+        }
+        catch (IOException)
+        {
+            IncrementReceiveErrors();
+        }
+        catch (UnauthorizedAccessException)
+        {
+            IncrementReceiveErrors();
+        }
+    }
+
+    private void IncrementReceiveErrors()
+    {
         lock (sync)
         {
-            var bytesToRead = serialPort.BytesToRead;
-            if (bytesToRead == 0)
-            {
-                return;
-            }
-
-            // Write data to ring buffer
-            WriteToRingBuffer(bytesToRead);
-
-            // Parse lines
-            ProcessLines();
+            totalReceiveErrors++;
         }
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void WriteToRingBuffer(int bytesToRead)
     {
-        var availableSpace = maxBufferSize - count;
         var bytesToWrite = bytesToRead;
 
-        // Discard old data if overflow
-        if (bytesToRead > availableSpace)
+        if (bytesToWrite > maxBufferSize)
         {
-            var discardedBytes = bytesToRead - availableSpace;
+            var discardedBytes = count;
 
-            // Update statics
+            head = 0;
+            tail = 0;
+            count = 0;
+            search = 0;
+
+            // Drain the leading
+            var skipRemaining = bytesToWrite - maxBufferSize;
+            while (skipRemaining > 0)
+            {
+                var skipRead = serialPort.Read(buffer, 0, Math.Min(skipRemaining, maxBufferSize));
+                if (skipRead == 0)
+                {
+                    break;
+                }
+
+                skipRemaining -= skipRead;
+            }
+
+            var drained = (bytesToWrite - maxBufferSize) - skipRemaining;
+            discardedBytes += drained;
+            bytesToWrite = maxBufferSize;
+
+            // Update statistics
             totalOverflowCount++;
+            totalBytesReceived += drained;
             totalBytesDiscarded += discardedBytes;
-
-            // Discard old data (move head forward)
-            head = (head + discardedBytes) % maxBufferSize;
-            count -= discardedBytes;
-
-            // Set search position
-            search = Math.Max(0, search - discardedBytes);
 
             // Raise overflow event
             RaiseBufferOverflow(discardedBytes);
+        }
+        else
+        {
+            var availableSpace = maxBufferSize - count;
+
+            // Discard old data if overflow
+            if (bytesToWrite > availableSpace)
+            {
+                var discardedBytes = bytesToWrite - availableSpace;
+
+                // Update statics
+                totalOverflowCount++;
+                totalBytesDiscarded += discardedBytes;
+
+                // Discard old data
+                head = (head + discardedBytes) % maxBufferSize;
+                count -= discardedBytes;
+
+                // Set search position
+                search = Math.Max(0, search - discardedBytes);
+
+                // Raise overflow event
+                RaiseBufferOverflow(discardedBytes);
+            }
         }
 
         // Read data from SerialPort into ring buffer
@@ -449,15 +542,15 @@ public sealed class SerialLineReader : IDisposable
         }
 
         // Multibyte delimiter
-        var delimSpan = delimiter.AsSpan();
-        var delimLen = delimSpan.Length;
+        var delimiterSpan = delimiter.AsSpan();
+        var delimiterLen = delimiterSpan.Length;
 
         var mSeg1Len = Math.Min(searchCount, maxBufferSize - startAbs);
         var span1 = buffer.AsSpan(startAbs, mSeg1Len);
 
-        if (mSeg1Len >= delimLen)
+        if (mSeg1Len >= delimiterLen)
         {
-            var idx = span1.IndexOf(delimSpan);
+            var idx = span1.IndexOf(delimiterSpan);
             if (idx >= 0)
             {
                 return search + idx;
@@ -470,15 +563,15 @@ public sealed class SerialLineReader : IDisposable
             var span2 = buffer.AsSpan(0, mSeg2Len);
 
             // Check wrap-boundary overlap
-            var overlapStart = Math.Max(0, mSeg1Len - (delimLen - 1));
+            var overlapStart = Math.Max(0, mSeg1Len - (delimiterLen - 1));
             for (var i = overlapStart; i < mSeg1Len; i++)
             {
                 var found = true;
-                for (var j = 0; j < delimLen; j++)
+                for (var j = 0; j < delimiterLen; j++)
                 {
                     var pos = i + j;
                     var b = pos < mSeg1Len ? span1[pos] : span2[pos - mSeg1Len];
-                    if (b != delimSpan[j])
+                    if (b != delimiterSpan[j])
                     {
                         found = false;
                         break;
@@ -491,9 +584,9 @@ public sealed class SerialLineReader : IDisposable
                 }
             }
 
-            if (mSeg2Len >= delimLen)
+            if (mSeg2Len >= delimiterLen)
             {
-                var idx2 = span2.IndexOf(delimSpan);
+                var idx2 = span2.IndexOf(delimiterSpan);
                 if (idx2 >= 0)
                 {
                     return search + mSeg1Len + idx2;
@@ -539,6 +632,7 @@ public sealed class SerialLineReader : IDisposable
                 TotalBytesDiscarded = totalBytesDiscarded,
                 TotalEmptyLinesSkipped = totalEmptyLinesSkipped,
                 TotalDiscardCount = totalDiscardCount,
+                TotalReceiveErrors = totalReceiveErrors,
                 PeakBufferUsage = peakBufferUsage,
                 CurrentBufferUsage = count
             };
@@ -559,6 +653,8 @@ public sealed class SerialLineReader : IDisposable
         public long TotalEmptyLinesSkipped { get; init; }
 
         public long TotalDiscardCount { get; init; }
+
+        public long TotalReceiveErrors { get; init; }
 
         public int PeakBufferUsage { get; init; }
 
