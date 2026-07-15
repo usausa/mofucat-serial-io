@@ -2,7 +2,6 @@ namespace Mofucat.SerialIO;
 
 using System.Buffers;
 using System.IO.Ports;
-using System.Runtime.CompilerServices;
 
 public delegate void LineReceivedCallback(object sender, ReadOnlySpan<byte> line);
 
@@ -43,106 +42,28 @@ public sealed class SerialLineReader : IDisposable
     private long totalEmptyLinesSkipped;
     private long totalDiscardCount;
     private long totalReceiveErrors;
+    private long totalCallbackErrors;
     private int peakBufferUsage;
 
-    public long TotalLinesReceived
-    {
-        get
-        {
-            lock (sync)
-            {
-                return totalLinesReceived;
-            }
-        }
-    }
+    public long TotalLinesReceived => Interlocked.Read(ref totalLinesReceived);
 
-    public long TotalBytesReceived
-    {
-        get
-        {
-            lock (sync)
-            {
-                return totalBytesReceived;
-            }
-        }
-    }
+    public long TotalBytesReceived => Interlocked.Read(ref totalBytesReceived);
 
-    public long TotalOverflowCount
-    {
-        get
-        {
-            lock (sync)
-            {
-                return totalOverflowCount;
-            }
-        }
-    }
+    public long TotalOverflowCount => Interlocked.Read(ref totalOverflowCount);
 
-    public long TotalBytesDiscarded
-    {
-        get
-        {
-            lock (sync)
-            {
-                return totalBytesDiscarded;
-            }
-        }
-    }
+    public long TotalBytesDiscarded => Interlocked.Read(ref totalBytesDiscarded);
 
-    public long TotalEmptyLinesSkipped
-    {
-        get
-        {
-            lock (sync)
-            {
-                return totalEmptyLinesSkipped;
-            }
-        }
-    }
+    public long TotalEmptyLinesSkipped => Interlocked.Read(ref totalEmptyLinesSkipped);
 
-    public long TotalDiscardCount
-    {
-        get
-        {
-            lock (sync)
-            {
-                return totalDiscardCount;
-            }
-        }
-    }
+    public long TotalDiscardCount => Interlocked.Read(ref totalDiscardCount);
 
-    public int PeakBufferUsage
-    {
-        get
-        {
-            lock (sync)
-            {
-                return peakBufferUsage;
-            }
-        }
-    }
+    public long TotalReceiveErrors => Interlocked.Read(ref totalReceiveErrors);
 
-    public int CurrentBufferUsage
-    {
-        get
-        {
-            lock (sync)
-            {
-                return count;
-            }
-        }
-    }
+    public long TotalCallbackErrors => Interlocked.Read(ref totalCallbackErrors);
 
-    public long TotalReceiveErrors
-    {
-        get
-        {
-            lock (sync)
-            {
-                return totalReceiveErrors;
-            }
-        }
-    }
+    public int PeakBufferUsage => Volatile.Read(ref peakBufferUsage);
+
+    public int CurrentBufferUsage => Volatile.Read(ref count);
 
     // ------------------------------------------------------------
     // Constructor
@@ -206,13 +127,15 @@ public sealed class SerialLineReader : IDisposable
     {
         lock (sync)
         {
+            ObjectDisposedException.ThrowIf(disposed != 0, this);
+
             var discardedBytes = count;
 
             // Update statistics
-            totalDiscardCount++;
+            Interlocked.Increment(ref totalDiscardCount);
             if (discardedBytes > 0)
             {
-                totalBytesDiscarded += discardedBytes;
+                Interlocked.Add(ref totalBytesDiscarded, discardedBytes);
             }
 
             // Reset pointers
@@ -244,7 +167,7 @@ public sealed class SerialLineReader : IDisposable
         }
         catch
         {
-            // Ignore
+            Interlocked.Increment(ref totalCallbackErrors);
         }
 #pragma warning restore CA1031
     }
@@ -264,7 +187,7 @@ public sealed class SerialLineReader : IDisposable
         }
         catch
         {
-            // Ignore
+            Interlocked.Increment(ref totalCallbackErrors);
         }
 #pragma warning restore CA1031
     }
@@ -319,11 +242,10 @@ public sealed class SerialLineReader : IDisposable
     {
         lock (sync)
         {
-            totalReceiveErrors++;
+            Interlocked.Increment(ref totalReceiveErrors);
         }
     }
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void WriteToRingBuffer(int bytesToRead)
     {
         var bytesToWrite = bytesToRead;
@@ -355,9 +277,9 @@ public sealed class SerialLineReader : IDisposable
             bytesToWrite = maxBufferSize;
 
             // Update statistics
-            totalOverflowCount++;
-            totalBytesReceived += drained;
-            totalBytesDiscarded += discardedBytes;
+            Interlocked.Increment(ref totalOverflowCount);
+            Interlocked.Add(ref totalBytesReceived, drained);
+            Interlocked.Add(ref totalBytesDiscarded, discardedBytes);
 
             // Raise overflow event
             RaiseBufferOverflow(discardedBytes);
@@ -372,8 +294,8 @@ public sealed class SerialLineReader : IDisposable
                 var discardedBytes = bytesToWrite - availableSpace;
 
                 // Update statics
-                totalOverflowCount++;
-                totalBytesDiscarded += discardedBytes;
+                Interlocked.Increment(ref totalOverflowCount);
+                Interlocked.Add(ref totalBytesDiscarded, discardedBytes);
 
                 // Discard old data
                 head = (head + discardedBytes) % maxBufferSize;
@@ -421,7 +343,7 @@ public sealed class SerialLineReader : IDisposable
             totalBytesRead += bytesRead;
 
             // Update statistics
-            totalBytesReceived += bytesRead;
+            Interlocked.Add(ref totalBytesReceived, bytesRead);
             if (count > peakBufferUsage)
             {
                 peakBufferUsage = count;
@@ -429,7 +351,6 @@ public sealed class SerialLineReader : IDisposable
         }
     }
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void ProcessLines()
     {
         while (count > 0)
@@ -447,7 +368,7 @@ public sealed class SerialLineReader : IDisposable
             if (delimiterIndex > 0)
             {
                 // Update statistics
-                totalLinesReceived++;
+                Interlocked.Increment(ref totalLinesReceived);
 
                 // Check if line is contiguous
                 if (head + delimiterIndex <= maxBufferSize)
@@ -464,7 +385,7 @@ public sealed class SerialLineReader : IDisposable
             else
             {
                 // Empty line skipped
-                totalEmptyLinesSkipped++;
+                Interlocked.Increment(ref totalEmptyLinesSkipped);
             }
 
             // Move head past the delimiter
@@ -503,7 +424,6 @@ public sealed class SerialLineReader : IDisposable
         }
     }
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private int FindDelimiterInRingBuffer()
     {
         // Check if enough data to contain delimiter
@@ -633,6 +553,7 @@ public sealed class SerialLineReader : IDisposable
                 TotalEmptyLinesSkipped = totalEmptyLinesSkipped,
                 TotalDiscardCount = totalDiscardCount,
                 TotalReceiveErrors = totalReceiveErrors,
+                TotalCallbackErrors = totalCallbackErrors,
                 PeakBufferUsage = peakBufferUsage,
                 CurrentBufferUsage = count
             };
@@ -655,6 +576,8 @@ public sealed class SerialLineReader : IDisposable
         public long TotalDiscardCount { get; init; }
 
         public long TotalReceiveErrors { get; init; }
+
+        public long TotalCallbackErrors { get; init; }
 
         public int PeakBufferUsage { get; init; }
 
