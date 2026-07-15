@@ -45,25 +45,115 @@ public sealed class SerialLineReader : IDisposable
     private long totalCallbackErrors;
     private int peakBufferUsage;
 
-    public long TotalLinesReceived => Interlocked.Read(ref totalLinesReceived);
+    public long TotalLinesReceived
+    {
+        get
+        {
+            lock (sync)
+            {
+                return totalLinesReceived;
+            }
+        }
+    }
 
-    public long TotalBytesReceived => Interlocked.Read(ref totalBytesReceived);
+    public long TotalBytesReceived
+    {
+        get
+        {
+            lock (sync)
+            {
+                return totalBytesReceived;
+            }
+        }
+    }
 
-    public long TotalOverflowCount => Interlocked.Read(ref totalOverflowCount);
+    public long TotalOverflowCount
+    {
+        get
+        {
+            lock (sync)
+            {
+                return totalOverflowCount;
+            }
+        }
+    }
 
-    public long TotalBytesDiscarded => Interlocked.Read(ref totalBytesDiscarded);
+    public long TotalBytesDiscarded
+    {
+        get
+        {
+            lock (sync)
+            {
+                return totalBytesDiscarded;
+            }
+        }
+    }
 
-    public long TotalEmptyLinesSkipped => Interlocked.Read(ref totalEmptyLinesSkipped);
+    public long TotalEmptyLinesSkipped
+    {
+        get
+        {
+            lock (sync)
+            {
+                return totalEmptyLinesSkipped;
+            }
+        }
+    }
 
-    public long TotalDiscardCount => Interlocked.Read(ref totalDiscardCount);
+    public long TotalDiscardCount
+    {
+        get
+        {
+            lock (sync)
+            {
+                return totalDiscardCount;
+            }
+        }
+    }
 
-    public long TotalReceiveErrors => Interlocked.Read(ref totalReceiveErrors);
+    public long TotalReceiveErrors
+    {
+        get
+        {
+            lock (sync)
+            {
+                return totalReceiveErrors;
+            }
+        }
+    }
 
-    public long TotalCallbackErrors => Interlocked.Read(ref totalCallbackErrors);
+    public long TotalCallbackErrors
+    {
+        get
+        {
+            lock (sync)
+            {
+                return totalCallbackErrors;
+            }
+        }
+    }
 
-    public int PeakBufferUsage => Volatile.Read(ref peakBufferUsage);
+    public int PeakBufferUsage
+    {
+        get
+        {
+            lock (sync)
+            {
+                return peakBufferUsage;
+            }
+        }
+    }
 
-    public int CurrentBufferUsage => Volatile.Read(ref count);
+    public int CurrentBufferUsage
+    {
+        get
+        {
+            lock (sync)
+            {
+                return count;
+            }
+        }
+    }
 
     // ------------------------------------------------------------
     // Constructor
@@ -132,10 +222,10 @@ public sealed class SerialLineReader : IDisposable
             var discardedBytes = count;
 
             // Update statistics
-            Interlocked.Increment(ref totalDiscardCount);
+            totalDiscardCount++;
             if (discardedBytes > 0)
             {
-                Interlocked.Add(ref totalBytesDiscarded, discardedBytes);
+                totalBytesDiscarded += discardedBytes;
             }
 
             // Reset pointers
@@ -167,7 +257,7 @@ public sealed class SerialLineReader : IDisposable
         }
         catch
         {
-            Interlocked.Increment(ref totalCallbackErrors);
+            totalCallbackErrors++;
         }
 #pragma warning restore CA1031
     }
@@ -187,7 +277,7 @@ public sealed class SerialLineReader : IDisposable
         }
         catch
         {
-            Interlocked.Increment(ref totalCallbackErrors);
+            totalCallbackErrors++;
         }
 #pragma warning restore CA1031
     }
@@ -242,7 +332,7 @@ public sealed class SerialLineReader : IDisposable
     {
         lock (sync)
         {
-            Interlocked.Increment(ref totalReceiveErrors);
+            totalReceiveErrors++;
         }
     }
 
@@ -277,9 +367,9 @@ public sealed class SerialLineReader : IDisposable
             bytesToWrite = maxBufferSize;
 
             // Update statistics
-            Interlocked.Increment(ref totalOverflowCount);
-            Interlocked.Add(ref totalBytesReceived, drained);
-            Interlocked.Add(ref totalBytesDiscarded, discardedBytes);
+            totalOverflowCount++;
+            totalBytesReceived += drained;
+            totalBytesDiscarded += discardedBytes;
 
             // Raise overflow event
             RaiseBufferOverflow(discardedBytes);
@@ -294,8 +384,8 @@ public sealed class SerialLineReader : IDisposable
                 var discardedBytes = bytesToWrite - availableSpace;
 
                 // Update statics
-                Interlocked.Increment(ref totalOverflowCount);
-                Interlocked.Add(ref totalBytesDiscarded, discardedBytes);
+                totalOverflowCount++;
+                totalBytesDiscarded += discardedBytes;
 
                 // Discard old data
                 head = (head + discardedBytes) % maxBufferSize;
@@ -343,7 +433,7 @@ public sealed class SerialLineReader : IDisposable
             totalBytesRead += bytesRead;
 
             // Update statistics
-            Interlocked.Add(ref totalBytesReceived, bytesRead);
+            totalBytesReceived += bytesRead;
             if (count > peakBufferUsage)
             {
                 peakBufferUsage = count;
@@ -368,7 +458,7 @@ public sealed class SerialLineReader : IDisposable
             if (delimiterIndex > 0)
             {
                 // Update statistics
-                Interlocked.Increment(ref totalLinesReceived);
+                totalLinesReceived++;
 
                 // Check if line is contiguous
                 if (head + delimiterIndex <= maxBufferSize)
@@ -385,7 +475,7 @@ public sealed class SerialLineReader : IDisposable
             else
             {
                 // Empty line skipped
-                Interlocked.Increment(ref totalEmptyLinesSkipped);
+                totalEmptyLinesSkipped++;
             }
 
             // Move head past the delimiter
