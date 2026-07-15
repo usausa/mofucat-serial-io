@@ -111,28 +111,6 @@ public sealed class SerialLineReader : IDisposable
         }
     }
 
-    public long TotalReceiveErrors
-    {
-        get
-        {
-            lock (sync)
-            {
-                return totalReceiveErrors;
-            }
-        }
-    }
-
-    public long TotalCallbackErrors
-    {
-        get
-        {
-            lock (sync)
-            {
-                return totalCallbackErrors;
-            }
-        }
-    }
-
     public int PeakBufferUsage
     {
         get
@@ -151,6 +129,28 @@ public sealed class SerialLineReader : IDisposable
             lock (sync)
             {
                 return count;
+            }
+        }
+    }
+
+    public long TotalReceiveErrors
+    {
+        get
+        {
+            lock (sync)
+            {
+                return totalReceiveErrors;
+            }
+        }
+    }
+
+    public long TotalCallbackErrors
+    {
+        get
+        {
+            lock (sync)
+            {
+                return totalCallbackErrors;
             }
         }
     }
