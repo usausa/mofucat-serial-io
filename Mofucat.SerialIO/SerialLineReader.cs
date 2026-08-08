@@ -322,6 +322,10 @@ public sealed class SerialLineReader : IDisposable
         {
             IncrementReceiveErrors();
         }
+        catch (TimeoutException)
+        {
+            IncrementReceiveErrors();
+        }
         catch (UnauthorizedAccessException)
         {
             IncrementReceiveErrors();
