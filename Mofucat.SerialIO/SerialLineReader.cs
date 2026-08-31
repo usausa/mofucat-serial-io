@@ -7,6 +7,7 @@ public delegate void LineReceivedCallback(object sender, ReadOnlySpan<byte> line
 
 public delegate void BufferOverflowCallback(object sender, int discardedBytes);
 
+#pragma warning disable CA1034
 public sealed class SerialLineReader : IDisposable
 {
 #pragma warning disable CA1003
@@ -678,3 +679,4 @@ public sealed class SerialLineReader : IDisposable
         public int CurrentBufferUsage { get; init; }
     }
 }
+#pragma warning restore CA1034

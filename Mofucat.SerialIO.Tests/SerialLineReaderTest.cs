@@ -9,12 +9,12 @@ using System.Text;
 
 public sealed class SerialLineReaderTest
 {
-    private static readonly string ReceivePort = Environment.GetEnvironmentVariable("SERIALIO_TEST_RECV") ?? "COM7";
-    private static readonly string SendPort = Environment.GetEnvironmentVariable("SERIALIO_TEST_SEND") ?? "COM8";
-
     private const int WaitTimeout = 5000;
     private const int SendWait = 100;
     private const int WaitValueTimeout = 5000;
+
+    private static readonly string ReceivePort = Environment.GetEnvironmentVariable("SERIALIO_TEST_RECV") ?? "COM7";
+    private static readonly string SendPort = Environment.GetEnvironmentVariable("SERIALIO_TEST_SEND") ?? "COM8";
 
     // ------------------------------------------------------------
     // Helper
