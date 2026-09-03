@@ -7,7 +7,7 @@ using System.IO.Ports;
 using System.Reflection;
 using System.Text;
 
-public sealed class SerialLineReaderTest
+public sealed class SerialLineReaderTests
 {
     private const int WaitTimeout = 5000;
     private const int SendWait = 100;
