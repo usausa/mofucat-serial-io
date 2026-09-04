@@ -245,10 +245,12 @@ public sealed class SerialLineReaderTests
         // Setup
         using var receivePort = new SerialPort(ReceivePort, 9600);
         using var sendPort = new SerialPort(SendPort, 9600);
+#pragma warning disable IDE0028
         using var reader = new SerialLineReader(
             receivePort,
             delimiter: "\r\n"u8.ToArray(),
             maxBufferSize: 50);
+#pragma warning restore IDE0028
 
         var list = new List<string>();
         using var event1 = new ManualResetEventSlim(false);
@@ -575,10 +577,12 @@ public sealed class SerialLineReaderTests
         using var receivePort = new SerialPort(ReceivePort, 9600);
         using var sendPort = new SerialPort(SendPort, 9600);
 
+#pragma warning disable IDE0028
         using var reader = new SerialLineReader(
             receivePort,
             delimiter: "\r\n"u8.ToArray(),
             maxBufferSize: 50);
+#pragma warning restore IDE0028
 
         var list = new List<string>();
         using var lineEvent = new ManualResetEventSlim(false);
@@ -947,10 +951,12 @@ public sealed class SerialLineReaderTests
         // Setup
         using var receivePort = new SerialPort(ReceivePort, 9600);
         using var sendPort = new SerialPort(SendPort, 9600);
+#pragma warning disable IDE0028
         using var reader = new SerialLineReader(
             receivePort,
             delimiter: "\r\n\r\n"u8.ToArray(),
             maxBufferSize: 50);
+#pragma warning restore IDE0028
 
         var list = new List<string>();
         using var lineEvent = new ManualResetEventSlim(false);
@@ -2074,7 +2080,9 @@ public sealed class SerialLineReaderTests
             new SerialLineReader(port, delimiter: [(byte)'\n'], maxBufferSize: 0));
 
         // maxBufferSize=1 with 2-byte delimiter must throw ArgumentOutOfRangeException
+#pragma warning disable IDE0028
         Assert.Throws<ArgumentOutOfRangeException>(() =>
             new SerialLineReader(port, delimiter: "\r\n"u8.ToArray(), maxBufferSize: 1));
+#pragma warning restore IDE0028
     }
 }
